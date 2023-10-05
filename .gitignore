@@ -1,0 +1,5 @@
+results/
+__pycache__/
+2d_*
+3d_*
+hits_and_tracks_*
