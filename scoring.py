@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import torch
 
 def _analyze_tracks(truth, submission):
     """Compute the majority particle, hit counts, and weight for each track.

@@ -10,14 +10,10 @@ from scoring import calc_score
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def clustering(pred_params, m, e):
+def clustering(pred_params):
     cluster_labels = []
     for _, event_prediction in enumerate(pred_params):
-        # clustering_algorithm = DBSCAN(metric=m, eps=e)
         clustering_algorithm = DBSCAN(metric='cityblock', eps=0.05)
-        # clustering_algorithm = Birch(threshold=0.3)
-        # FOR 3D 3TRACK DATA ALGORITHM BELOW IS OPTIMAL, SCORE = 0.9965
-        # clustering_algorithm = Birch(threshold=0.01)
         regressed_params = np.array(event_prediction.tolist())
         event_cluster_labels = clustering_algorithm.fit_predict(regressed_params)
         cluster_labels.append(event_cluster_labels)
@@ -88,7 +84,7 @@ def evaluate(model, validation_loader, loss_fn):
 
     return losses / len(validation_loader)
 
-def predict(model, test_loader, m, e):
+def predict(model, test_loader):
     '''
     Evaluates the network on the test data. Returns the predictions
     '''
@@ -100,7 +96,6 @@ def predict(model, test_loader, m, e):
     n_batches = int(math.ceil(len(test_loader.dataset) / test_loader.batch_size))
     t = tqdm.tqdm(enumerate(test_loader), total=n_batches)
     for i, data in t:
-        # if i < 15000:
         event_id, hits_orig, track_params, track_labels = data
 
         # Make prediction
@@ -113,7 +108,7 @@ def predict(model, test_loader, m, e):
         track_params = track_params[:, :pred.shape[1] ,:]
         track_labels = track_labels[:, :pred.shape[1]]
 
-        cluster_labels = clustering(pred, m, e)
+        cluster_labels = clustering(pred)
         score += calc_score(cluster_labels, track_labels)
 
         for _, e_id in enumerate(event_id):
@@ -124,6 +119,7 @@ def predict(model, test_loader, m, e):
 if __name__ == "__main__":
     NUM_EPOCHS = 30
     EARLY_STOPPING = 5
+    MODEL_NAME = "3d_3track_"
 
     torch.manual_seed(37)  # for reproducibility
 
@@ -169,11 +165,11 @@ if __name__ == "__main__":
         if val_loss < min_val_loss:
             # If the model has a new best validation loss, save it as "the best"
             min_val_loss = val_loss
-            save_model(transformer, optimizer, "best", val_losses, train_losses, epoch, count, "2d_transformer")
+            save_model(transformer, optimizer, "best", val_losses, train_losses, epoch, count, MODEL_NAME)
             count = 0
         else:
             # If the model's validation loss isn't better than the best, save it as "the last"
-            save_model(transformer, optimizer, "last", val_losses, train_losses, epoch, count, "2d_transformer")
+            save_model(transformer, optimizer, "last", val_losses, train_losses, epoch, count, MODEL_NAME)
             count += 1
 
         if count >= EARLY_STOPPING:

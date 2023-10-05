@@ -3,7 +3,6 @@ import torch.nn as nn
 
 PAD_TOKEN = -1
 
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class TransformerClassifier(nn.Module):
     '''

@@ -1,12 +1,9 @@
 import matplotlib.pyplot as plt
-import torch
-import numpy as np
 
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 def plot_3d(parameters, param):
-    # print(parameters)
     plt.figure()
     param_names = {'theta': 0, 'phi' : 1}
     for event_parameters in parameters:
@@ -33,12 +30,6 @@ def plot_regressed_params(parameters, events):
         plt.ylabel("phi")
         i += 1
         plt.show()
-        # plt.savefig(f'3d_3track_theta_phi_{i}.png')
-
-    # plt.title(f"Regressed vs ground truth")
-    # plt.xlabel("Predicted")
-    # plt.ylabel("True")
-    # plt.show()
 
 def plot_cluster_labels(parameters, events):
     plt.figure()
