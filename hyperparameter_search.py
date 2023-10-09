@@ -16,7 +16,7 @@ train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               batch_size=1024)
 print('data loaded')
 
-number_encoder_layers = [2, 4, 8, 16, 32]
+number_encoder_layers = [2, 3, 4, 5, 6, 7, 8]
 embedding_dimensions = [8, 16, 32, 64, 128]
 number_attention_heads = [4, 8, 16, 32]
 dim_feedforward_layes = [64, 128, 256]
@@ -29,7 +29,7 @@ for num_enc_l in number_encoder_layers:
                 for drop in dropout_percentage:
                     if emb_dim % n_head != 0:
                         continue
-                    
+
                     print(f"Hyperparam set: {num_enc_l} encoder layers, {emb_dim} d_model, {n_head} heads, {dim_ff} dim of feedforward, {drop}% dropout")
                     transformer = TransformerClassifier(num_encoder_layers=num_enc_l,
                                                         d_model=emb_dim,
