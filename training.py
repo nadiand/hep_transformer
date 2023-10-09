@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 import math
 import tqdm
-from sklearn.cluster import DBSCAN, Birch
+from sklearn.cluster import AgglomerativeClustering
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data
 from scoring import calc_score
@@ -13,7 +13,7 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 def clustering(pred_params):
     cluster_labels = []
     for _, event_prediction in enumerate(pred_params):
-        clustering_algorithm = DBSCAN(metric='cityblock', eps=0.05)
+        clustering_algorithm = AgglomerativeClustering(n_clusters=None, distance_threshold=0.1)
         regressed_params = np.array(event_prediction.tolist())
         event_cluster_labels = clustering_algorithm.fit_predict(regressed_params)
         cluster_labels.append(event_cluster_labels)
@@ -21,7 +21,7 @@ def clustering(pred_params):
     cluster_labels = [torch.from_numpy(cl_lbl).int() for cl_lbl in cluster_labels]
     return cluster_labels
 
-def train_epoch(model, optim, train_loader, loss_fn):
+def train_epoch(model, optim, train_loader, loss_fn, disable_tqdm=False):
     '''
     Conducts a single epoch of training: prediction, loss calculation, and loss
     backpropagation. Returns the average loss over the whole train data.
@@ -31,7 +31,7 @@ def train_epoch(model, optim, train_loader, loss_fn):
     model.train()
     losses = 0.
     n_batches = int(math.ceil(len(train_loader.dataset) / train_loader.batch_size))
-    t = tqdm.tqdm(enumerate(train_loader), total=n_batches)
+    t = tqdm.tqdm(enumerate(train_loader), total=n_batches, disable=disable_tqdm)
     for _, data in t:
         _, hits_orig, track_params, _ = data
         optim.zero_grad()
@@ -55,7 +55,7 @@ def train_epoch(model, optim, train_loader, loss_fn):
 
     return losses / len(train_loader)
 
-def evaluate(model, validation_loader, loss_fn):
+def evaluate(model, validation_loader, loss_fn, disable_tqdm=False):
     '''
     Evaluates the network on the validation data by making a prediction and
     calculating the loss. Returns the average loss over the whole val data.
@@ -64,7 +64,7 @@ def evaluate(model, validation_loader, loss_fn):
     model.eval()
     losses = 0.
     n_batches = int(math.ceil(len(validation_loader.dataset) / validation_loader.batch_size))
-    t = tqdm.tqdm(enumerate(validation_loader), total=n_batches)
+    t = tqdm.tqdm(enumerate(validation_loader), total=n_batches, disable=disable_tqdm)
     with torch.no_grad():
         for _, data in t:
             _, hits_orig, track_params, _ = data
@@ -84,7 +84,7 @@ def evaluate(model, validation_loader, loss_fn):
 
     return losses / len(validation_loader)
 
-def predict(model, test_loader):
+def predict(model, test_loader, disable_tqdm=False):
     '''
     Evaluates the network on the test data. Returns the predictions
     '''
@@ -94,7 +94,7 @@ def predict(model, test_loader):
     predictions = {}
     score = 0.
     n_batches = int(math.ceil(len(test_loader.dataset) / test_loader.batch_size))
-    t = tqdm.tqdm(enumerate(test_loader), total=n_batches)
+    t = tqdm.tqdm(enumerate(test_loader), total=n_batches, disable=disable_tqdm)
     for i, data in t:
         event_id, hits_orig, track_params, track_labels = data
 
