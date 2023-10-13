@@ -1,5 +1,6 @@
 results/
 __pycache__/
+wandb/
 2d_*
 3d_*
 hits_and_tracks_*
