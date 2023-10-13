@@ -4,3 +4,5 @@ wandb/
 2d_*
 3d_*
 hits_and_tracks_*
+*_best
+*_last
