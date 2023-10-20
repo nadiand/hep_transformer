@@ -4,6 +4,7 @@ import numpy as np
 import math
 import tqdm
 from sklearn.cluster import AgglomerativeClustering
+
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data
 from scoring import calc_score
@@ -11,9 +12,9 @@ from scoring import calc_score
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def clustering(pred_params):
+    clustering_algorithm = AgglomerativeClustering(n_clusters=None, distance_threshold=0.14)
     cluster_labels = []
     for _, event_prediction in enumerate(pred_params):
-        clustering_algorithm = AgglomerativeClustering(n_clusters=None, distance_threshold=0.1)
         regressed_params = np.array(event_prediction.tolist())
         event_cluster_labels = clustering_algorithm.fit_predict(regressed_params)
         cluster_labels.append(event_cluster_labels)
@@ -95,7 +96,7 @@ def predict(model, test_loader, disable_tqdm=False):
     score = 0.
     n_batches = int(math.ceil(len(test_loader.dataset) / test_loader.batch_size))
     t = tqdm.tqdm(enumerate(test_loader), total=n_batches, disable=disable_tqdm)
-    for i, data in t:
+    for _, data in t:
         event_id, hits_orig, track_params, track_labels = data
 
         # Make prediction
@@ -109,17 +110,18 @@ def predict(model, test_loader, disable_tqdm=False):
         track_labels = track_labels[:, :pred.shape[1]]
 
         cluster_labels = clustering(pred)
-        score += calc_score(cluster_labels, track_labels)
+        event_score = calc_score(cluster_labels)
+        score += event_score
 
         for _, e_id in enumerate(event_id):
-            predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels)
+            predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
 
     return predictions, score/len(test_loader)
 
 if __name__ == "__main__":
     NUM_EPOCHS = 30
     EARLY_STOPPING = 5
-    MODEL_NAME = "3d_3track_"
+    MODEL_NAME = "test_"
 
     torch.manual_seed(37)  # for reproducibility
 
