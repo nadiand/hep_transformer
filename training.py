@@ -110,7 +110,7 @@ def predict(model, test_loader, disable_tqdm=False):
         track_labels = track_labels[:, :pred.shape[1]]
 
         cluster_labels = clustering(pred)
-        event_score = calc_score(cluster_labels)
+        event_score = calc_score(cluster_labels, track_labels)
         score += event_score
 
         for _, e_id in enumerate(event_id):
@@ -119,9 +119,9 @@ def predict(model, test_loader, disable_tqdm=False):
     return predictions, score/len(test_loader)
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 30
-    EARLY_STOPPING = 5
-    MODEL_NAME = "test_"
+    NUM_EPOCHS = 100
+    EARLY_STOPPING = 50
+    MODEL_NAME = "3d_3track_"
 
     torch.manual_seed(37)  # for reproducibility
 
