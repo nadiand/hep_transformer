@@ -4,15 +4,16 @@ import numpy as np
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
+colors = {-1: 'yellow', 0: 'red', 1: 'blue', 2: 'green', 3: 'purple', 4: 'brown', 5: 'orange', 6: 'beige', 7: 'magenta', 8: 'gray', 9: 'pink', 10: 'indigo', 11: 'maroon', 12: 'coral', 13: 'lime', 14: 'deepskyblue', 15: 'gold', 16: 'lightgray', 17: 'plum', 18: 'tan', 19: 'yellowgreen', 20: 'darkgreen', 21: 'darkblue', 22: 'lightgreen', 23: 'lightblue'}
+
 def visualize_3d_hits(data_df):
     '''
-    Visualizes the simplified setup: the 5 detectors as circles/spheres, depending
-    on *DIM* and 5 events as the hits of the generated particles with the detectors.
+    Visualizes the simplified setup: the 5 detectors as spheres and a few 
+    events as the hits of the generated particles with the detectors.
     '''
     # Plot the detectors
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
-    colors = {-1: 'yellow', 0: 'red', 1: 'blue', 2: 'green', 3: 'purple', 4: 'brown', 5: 'orange', 6: 'beige', 7: 'magenta', 8: 'gray', 9: 'pink', 10: 'indigo', 11: 'maroon', 12: 'coral', 13: 'lime', 14: 'deepskyblue', 15: 'gold', 16: 'lightgray', 17: 'plum', 18: 'tan', 19: 'yellowgreen', 20: 'darkgreen', 21: 'darkblue', 22: 'lightgreen', 23: 'lightblue'}
 
     # Plot events
     for ind in range(1): # 1 event in this case
@@ -25,7 +26,7 @@ def visualize_3d_hits(data_df):
     
     plt.show()
 
-def plot_3d(parameters, param):
+def plot_3d_parameters(parameters, param):
     plt.figure()
     param_names = {'theta': 0, 'phi' : 1, 'pitch coeff': 1, 'radial coeff': 0}
     for event_parameters in parameters:
@@ -37,29 +38,17 @@ def plot_3d(parameters, param):
     plt.ylabel("True")
     plt.show()
 
-def plot_regressed_params(parameters, events):
+def plot_regressed_params(parameters):
     i = 0
     for event_parameters in parameters:
         plt.figure()
         predicted, true = event_parameters[1][0], event_parameters[2][0]
-        colors = {-1: 'yellow', 0: 'red', 1: 'blue', 2: 'green', 3: 'purple', 4: 'brown', 5: 'orange', 6: 'beige', 7: 'magenta', 8: 'gray', 9: 'pink', 10: 'indigo', 11: 'maroon', 12: 'coral', 13: 'lime', 14: 'deepskyblue', 15: 'gold', 16: 'lightgray', 17: 'plum', 18: 'tan', 19: 'yellowgreen', 20: 'darkgreen', 21: 'darkblue', 22: 'lightgreen', 23: 'lightblue'}
         for j in range(len(predicted)):
             plt.scatter(predicted[j, 0], predicted[j, 1], c=colors[event_parameters[3][0][j].item()], alpha=0.5, s=80)
             plt.scatter(true[j, 0], true[j, 1], edgecolors='black', marker='v', c=colors[event_parameters[3][0][j].item()], alpha=0.5, s=80)
         plt.title(f"Predicted parameters vs ground truth")
         plt.xlabel("theta")
         plt.ylabel("phi")
-        i += 1
-        plt.show()
-
-def plot_cluster_labels(parameters, events):
-    plt.figure()
-    i = 0
-    for event_parameters in parameters:
-        predicted, true = event_parameters[3][0], event_parameters[4][0]
-        plt.scatter(predicted, predicted, c='red')
-        plt.scatter(true, true, c='blue', marker='v')
-        plt.title(f"event {list(events)[i]}")
         i += 1
         plt.show()
 
