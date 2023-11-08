@@ -1,8 +1,11 @@
 results/
 __pycache__/
 wandb/
+figs/
+model performance/
 2d_*
 3d_*
 hits_and_tracks_*
 *_best
 *_last
+*.csv
