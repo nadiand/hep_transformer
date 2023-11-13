@@ -118,12 +118,15 @@ def score_event(truth, submission):
     return tracks['major_weight'][good_track].sum()
 
 def calc_score(pred_lbl, true_lbl):
+    """
+    pred_lbl is a tensor containing predicted cluster IDs
+    true_lbl is a tensor containing the true cluster IDs (track_id from dataset)
+    """
     score = 0.
-    particle_ids = true_lbl
-    for i in range(len(particle_ids)):
+    for i in range(len(true_lbl)):
         truth_rows, pred_rows = [], []
-        for ind, part in enumerate(particle_ids[i]):
-            truth_rows.append((ind, part.item(), 1))
+        for ind, part in enumerate(true_lbl[i]):
+            truth_rows.append((ind, part.item(), 1)) #assigning weight=1 to every hit
 
         for ind, pred in enumerate(pred_lbl[i]):
             pred_rows.append((ind, pred.item()))
@@ -133,4 +136,4 @@ def calc_score(pred_lbl, true_lbl):
         submission = pd.DataFrame(pred_rows)
         submission.columns = ['hit_id', 'track_id']
         score += score_event(truth, submission)
-    return score/len(particle_ids)
+    return score/len(true_lbl)
