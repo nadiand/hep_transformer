@@ -119,11 +119,11 @@ def score_event(truth, submission):
 
 def calc_score(pred_lbl, true_lbl):
     """
-    pred_lbl is a tensor containing predicted cluster IDs
-    true_lbl is a tensor containing the true cluster IDs (track_id from dataset)
+    pred_lbl is a tensor containing predicted cluster IDs from a single event
+    true_lbl is a tensor containing the true cluster IDs from a single event (track_id from dataset)
     """
     score = 0.
-    for i in range(len(true_lbl)):
+    for i in range(len(true_lbl)): #go over every single hit from the event
         truth_rows, pred_rows = [], []
         for ind, part in enumerate(true_lbl[i]):
             truth_rows.append((ind, part.item(), 1)) #assigning weight=1 to every hit
