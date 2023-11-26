@@ -1,13 +1,12 @@
 import torch
 import torch.nn as nn
 import numpy as np
-import math
-import tqdm
 from sklearn.cluster import AgglomerativeClustering
 
 from model import TransformerClassifier, PAD_TOKEN, save_model
-from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data
+from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
 from scoring import calc_score
+from trackml_data import load_trackml_data
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -22,7 +21,7 @@ def clustering(pred_params):
     cluster_labels = [torch.from_numpy(cl_lbl).int() for cl_lbl in cluster_labels]
     return cluster_labels
 
-def train_epoch(model, optim, train_loader, loss_fn, disable_tqdm=False):
+def train_epoch(model, optim, train_loader, loss_fn):
     '''
     Conducts a single epoch of training: prediction, loss calculation, and loss
     backpropagation. Returns the average loss over the whole train data.
@@ -31,32 +30,25 @@ def train_epoch(model, optim, train_loader, loss_fn, disable_tqdm=False):
     torch.set_grad_enabled(True)
     model.train()
     losses = 0.
-    n_batches = int(math.ceil(len(train_loader.dataset) / train_loader.batch_size))
-    t = tqdm.tqdm(enumerate(train_loader), total=n_batches, disable=disable_tqdm)
-    for _, data in t:
-        _, hits_orig, track_params, _ = data
+    for data in train_loader:
+        _, hits_orig, track_params, test = data
         optim.zero_grad()
 
         # Make prediction
         hits = hits_orig.clone()
         hits = hits.to(DEVICE)
         track_params = track_params.to(DEVICE)
-        
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         pred = model(hits, padding_mask)
-
         # Calculate loss and use it to update weights
         loss = loss_fn(pred, track_params)
         loss.backward()
         optim.step()
         losses += loss.item()
 
-        # Calculate the accuracy of predictions
-        t.set_description("loss = %.8f" % loss.item())
-
     return losses / len(train_loader)
 
-def evaluate(model, validation_loader, loss_fn, disable_tqdm=False):
+def evaluate(model, validation_loader, loss_fn):
     '''
     Evaluates the network on the validation data by making a prediction and
     calculating the loss. Returns the average loss over the whole val data.
@@ -64,10 +56,8 @@ def evaluate(model, validation_loader, loss_fn, disable_tqdm=False):
     # Get the network in evaluation mode
     model.eval()
     losses = 0.
-    n_batches = int(math.ceil(len(validation_loader.dataset) / validation_loader.batch_size))
-    t = tqdm.tqdm(enumerate(validation_loader), total=n_batches, disable=disable_tqdm)
     with torch.no_grad():
-        for _, data in t:
+        for data in valid_loader:
             _, hits_orig, track_params, _ = data
 
             # Make prediction
@@ -85,7 +75,7 @@ def evaluate(model, validation_loader, loss_fn, disable_tqdm=False):
 
     return losses / len(validation_loader)
 
-def predict(model, test_loader, disable_tqdm=False):
+def predict(model, test_loader):
     '''
     Evaluates the network on the test data. Returns the predictions
     '''
@@ -94,9 +84,7 @@ def predict(model, test_loader, disable_tqdm=False):
     model.eval()
     predictions = {}
     score = 0.
-    n_batches = int(math.ceil(len(test_loader.dataset) / test_loader.batch_size))
-    t = tqdm.tqdm(enumerate(test_loader), total=n_batches, disable=disable_tqdm)
-    for _, data in t:
+    for data in test_loader:
         event_id, hits_orig, track_params, track_labels = data
 
         # Make prediction
@@ -108,6 +96,7 @@ def predict(model, test_loader, disable_tqdm=False):
         pred = model(hits, padding_mask)
         track_params = track_params[:, :pred.shape[1] ,:]
         track_labels = track_labels[:, :pred.shape[1]]
+        hits = hits[:, :pred.shape[1], :]
 
         cluster_labels = clustering(pred)
         event_score = calc_score(cluster_labels, track_labels)
@@ -121,18 +110,19 @@ def predict(model, test_loader, disable_tqdm=False):
 if __name__ == "__main__":
     NUM_EPOCHS = 100
     EARLY_STOPPING = 50
-    MODEL_NAME = "3d_3track_"
+    MODEL_NAME = "test"
+    max_nr_hits = 800
 
     torch.manual_seed(37)  # for reproducibility
 
     # Load and split dataset into training, validation and test sets, and get dataloaders
-    hits_data, track_params_data, track_classes_data = load_linear_3d_data(data_path="hits_and_tracks_3d_events_all.csv", max_num_hits=81)
+    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="trackml_1to50tracks.csv", max_num_hits=max_nr_hits)
     dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
     train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,
                                                               valid_frac=0.15,
                                                               test_frac=0.15,
-                                                              batch_size=1024)
+                                                              batch_size=2)
     print("data loaded")
 
     # Transformer model
@@ -140,7 +130,7 @@ if __name__ == "__main__":
                                         d_model=32,
                                         n_head=8,
                                         input_size=3,
-                                        output_size=2,
+                                        output_size=3,
                                         dim_feedforward=128,
                                         dropout=0.1)
     transformer = transformer.to(DEVICE)
@@ -177,6 +167,3 @@ if __name__ == "__main__":
         if count >= EARLY_STOPPING:
             print("Early stopping...")
             break
-
-    # Predict on the test data
-    preds = predict(transformer, test_loader)
