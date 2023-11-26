@@ -5,7 +5,7 @@ from sklearn.cluster import AgglomerativeClustering
 
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
-from scoring import calc_score
+from scoring import calc_score, calc_score_trackml
 from trackml_data import load_trackml_data
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -99,7 +99,7 @@ def predict(model, test_loader):
         hits = hits[:, :pred.shape[1], :]
 
         cluster_labels = clustering(pred)
-        event_score = calc_score(cluster_labels, track_labels)
+        event_score = calc_score_trackml(cluster_labels, track_labels)
         score += event_score
 
         for _, e_id in enumerate(event_id):
