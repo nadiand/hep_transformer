@@ -2,6 +2,7 @@ results/
 __pycache__/
 wandb/
 figs/
+losses/
 model performance/
 2d_*
 3d_*
