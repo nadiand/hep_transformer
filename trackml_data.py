@@ -36,10 +36,16 @@ def transform_trackml_data(event_id, min_part_in_event, max_part_in_event):
     final_data.to_csv(f'trackml_{min_part_in_event}to{max_part_in_event}tracks.csv', mode='a', index=False, header=False)
 
 
-def load_trackml_data(data_path, max_num_hits):
+def load_trackml_data(data_path, max_num_hits, normalize=False):
     full_data = pd.read_csv(data_path)
-    full_data = full_data.sample(frac=1)
 
+    if normalize:
+        for col in ["x", "y", "z", "vx", "vy", "vz", "px", "py", "pz", "q"]:
+            mean = full_data[col].mean()
+            std = full_data[col].std()
+            full_data[col] = (full_data[col] - mean)/std
+
+    full_data = full_data.sample(frac=1)
     data_grouped_by_event = full_data.groupby("event_id")
 
     def extract_hits_data(event_rows):
@@ -51,8 +57,7 @@ def load_trackml_data(data_path, max_num_hits):
         p = np.sqrt(event_track_params_data[:,3]**2 + event_track_params_data[:,4]**2 + event_track_params_data[:,5]**2)
         theta = np.arccos(event_track_params_data[:,5]/p)
         phi = np.arctan2(event_track_params_data[:,4], event_track_params_data[:,3])
-        v_vec = np.fabs(event_track_params_data[:,0:3])
-        processed_event_track_params_data = np.column_stack([theta, phi, event_track_params_data[:,6], np.fabs(p)])
+        processed_event_track_params_data = np.column_stack([theta, phi, event_track_params_data[:,6]])
         return np.pad(processed_event_track_params_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
 
     def extract_hit_classes_data(event_rows):
