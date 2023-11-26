@@ -49,7 +49,7 @@ def load_linear_2d_data(data_path):
     return hits_data, track_params_data, hit_classes_data
 
 def load_linear_3d_data(data_path, max_num_hits):
-    full_data = pd.read_csv(data_path, sep=";").head(5000)
+    full_data = pd.read_csv(data_path, sep=";")
     full_data = full_data.sample(frac=1)
     
     data_grouped_by_event = full_data.groupby("event_id")
@@ -90,6 +90,7 @@ def load_curved_3d_data(data_path, max_num_hits):
     
     def extract_track_params_data(event_rows):
         event_track_params_data = event_rows[["radial_coeff","pitch_coeff"]].to_numpy(dtype=np.float32)
+        # processed_event_track_params_data = np.column_stack((np.fabs(event_track_params_data[:,1]), np.sign(event_track_params_data[:,1]), event_track_params_data[:,0]))
         return np.pad(event_track_params_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
     
     def extract_hit_classes_data(event_rows):
