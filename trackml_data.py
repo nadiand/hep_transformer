@@ -6,34 +6,38 @@ import argparse
 
 from model import PAD_TOKEN
 
-def transform_trackml_data(event_id, min_part_in_event, max_part_in_event):
+def transform_trackml_data(event_id, min_part_in_event, max_part_in_event, sub_events):
     hits_data = pd.read_csv(f'event0000{event_id}-hits.csv')
     particles_data = pd.read_csv(f'event0000{event_id}-particles.csv')
     truth_data = pd.read_csv(f'event0000{event_id}-truth.csv')
 
-    # get only X many particles' data from the event, with X in [min_part_in_event, max_part_in_event]
-    nr_particles_in_event = random.randint(min_part_in_event, max_part_in_event)
-    sampled_particle_ids = particles_data['particle_id'].unique().tolist()[:nr_particles_in_event]
-    indices = particles_data['particle_id'].isin(sampled_particle_ids)
-    particles_data = particles_data[indices]
+    particle_ids = particles_data['particle_id'].unique().tolist()
+    nr_particles_in_current_event = 0
+    for i in range(sub_events):
+        # get only X many particles' data from the event, with X in [min_part_in_event, max_part_in_event]
+        nr_particles_in_event = random.randint(min_part_in_event, max_part_in_event)
+        sampled_particle_ids = particle_ids[nr_particles_in_current_event:nr_particles_in_current_event+nr_particles_in_event]
+        nr_particles_in_current_event += nr_particles_in_event
+        indices = particles_data['particle_id'].isin(sampled_particle_ids)
+        particles_data_subset = particles_data[indices]
 
-    indices = truth_data['particle_id'].isin(particles_data["particle_id"])
-    truth_data = truth_data[indices]
-    hits_data = hits_data[indices]
+        indices = truth_data['particle_id'].isin(particles_data_subset["particle_id"])
+        truth_data_subset = truth_data[indices]
+        hits_data_subset = hits_data[indices]
 
-    # merge dataframes into a single one
-    hits_data = hits_data[["hit_id", "x", "y", "z", "volume_id"]]
-    hits_data.insert(0, column="particle_id", value=truth_data["particle_id"].values)
-    hits_data.insert(0, column="weight", value=truth_data["weight"].values)
+        # merge dataframes into a single one
+        hits_data_subset = hits_data_subset[["hit_id", "x", "y", "z", "volume_id"]]
+        hits_data_subset.insert(0, column="particle_id", value=truth_data_subset["particle_id"].values)
+        hits_data_subset.insert(0, column="weight", value=truth_data_subset["weight"].values)
 
-    merged_data = hits_data.merge(truth_data, left_on='hit_id', right_on='hit_id')
-    merged_data = merged_data.merge(particles_data, left_on='particle_id_x', right_on='particle_id')
+        merged_data = hits_data_subset.merge(truth_data_subset, left_on='hit_id', right_on='hit_id')
+        merged_data = merged_data.merge(particles_data_subset, left_on='particle_id_x', right_on='particle_id')
 
-    final_data = merged_data[["x", "y", "z", "volume_id", "vx", "vy", "vz", "px", "py", "pz", "q", "particle_id", "weight_x"]]
-    final_data['event_id'] = event_id
+        final_data = merged_data[["x", "y", "z", "volume_id", "vx", "vy", "vz", "px", "py", "pz", "q", "particle_id", "weight_x"]]
+        final_data['event_id'] = int(event_id)+20000+i
 
-    # write it to a file
-    final_data.to_csv(f'trackml_{min_part_in_event}to{max_part_in_event}tracks.csv', mode='a', index=False, header=False)
+        # write it to a file
+        final_data.to_csv(f'trackml_{min_part_in_event}to{max_part_in_event}tracks.csv', mode='a', index=False, header=False)
 
 
 def load_trackml_data(data_path, max_num_hits, normalize=False):
@@ -79,7 +83,9 @@ if __name__ == "__main__":
     argparser.add_argument('-e', '--event_id')
     argparser.add_argument('-l', '--min_nr_tracks')
     argparser.add_argument('-u', '--max_nr_tracks')
+    argparser.add_argument('-s', '--nr_subevents')
     args = argparser.parse_args()
-    transform_trackml_data(args.event_id, args.min_nr_tracks, args.max_nr_tracks)
+    transform_trackml_data(args.event_id, args.min_nr_tracks, args.max_nr_tracks, args.nr_subevents)
     
-    # transform_trackml_data('21000', 1, 10)
+    # Equivalent to not splitting the event into multiple ones
+    # transform_trackml_data(event_id='21000', min_part_in_event=1, max_part_in_event=5, sub_events=1)
