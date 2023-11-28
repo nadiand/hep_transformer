@@ -13,9 +13,9 @@ def transform_trackml_data(event_id, min_part_in_event, max_part_in_event, sub_e
 
     particle_ids = particles_data['particle_id'].unique().tolist()
     nr_particles_in_current_event = 0
-    for i in range(sub_events):
+    for i in range(int(sub_events)):
         # get only X many particles' data from the event, with X in [min_part_in_event, max_part_in_event]
-        nr_particles_in_event = random.randint(min_part_in_event, max_part_in_event)
+        nr_particles_in_event = random.randint(int(min_part_in_event), int(max_part_in_event))
         sampled_particle_ids = particle_ids[nr_particles_in_current_event:nr_particles_in_current_event+nr_particles_in_event]
         nr_particles_in_current_event += nr_particles_in_event
         indices = particles_data['particle_id'].isin(sampled_particle_ids)
