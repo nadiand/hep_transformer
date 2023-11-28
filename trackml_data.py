@@ -34,7 +34,7 @@ def transform_trackml_data(event_id, min_part_in_event, max_part_in_event, sub_e
         merged_data = merged_data.merge(particles_data_subset, left_on='particle_id_x', right_on='particle_id')
 
         final_data = merged_data[["x", "y", "z", "volume_id", "vx", "vy", "vz", "px", "py", "pz", "q", "particle_id", "weight_x"]]
-        final_data['event_id'] = int(event_id)+20000+i
+        final_data['event_id'] = event_id + f"_{i}"
 
         # write it to a file
         final_data.to_csv(f'trackml_{min_part_in_event}to{max_part_in_event}tracks.csv', mode='a', index=False, header=False)
