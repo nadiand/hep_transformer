@@ -1,8 +1,15 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 PAD_TOKEN = -1
 
+class AngleDifferenceLoss(nn.Module):
+    def __init__(self):
+        super(AngleDifferenceLoss, self).__init__()
+
+    def forward(self, predictions, targets):
+        return torch.mean((((predictions - targets) + np.pi) % 2*np.pi) - np.pi)
 
 class TransformerClassifier(nn.Module):
     '''
