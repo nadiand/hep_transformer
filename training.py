@@ -7,15 +7,23 @@ from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
 from scoring import calc_score, calc_score_trackml
 from trackml_data import load_trackml_data
+from sklearn.metrics import pairwise_distances
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def clustering(pred_params):
-    clustering_algorithm = AgglomerativeClustering(n_clusters=None, distance_threshold=0.14)
+    def angdiff(point1, point2):
+        return np.abs((((point1[1]-point2[1]) + np.pi) % (2*np.pi)) - np.pi)
+    
+    def sim_affinity(X):
+        return pairwise_distances(X, metric=angdiff)
+
+    clustering_algorithm = AgglomerativeClustering(n_clusters=None, distance_threshold=0.1, affinity='precomputed', linkage='single')
     cluster_labels = []
     for _, event_prediction in enumerate(pred_params):
         regressed_params = np.array(event_prediction.tolist())
-        event_cluster_labels = clustering_algorithm.fit_predict(regressed_params)
+        X = sim_affinity(regressed_params)
+        event_cluster_labels = clustering_algorithm.fit_predict(X)
         cluster_labels.append(event_cluster_labels)
 
     cluster_labels = [torch.from_numpy(cl_lbl).int() for cl_lbl in cluster_labels]
@@ -31,7 +39,7 @@ def train_epoch(model, optim, train_loader, loss_fn):
     model.train()
     losses = 0.
     for data in train_loader:
-        _, hits_orig, track_params, test = data
+        _, hits_orig, track_params, _ = data
         optim.zero_grad()
 
         # Make prediction
@@ -108,7 +116,7 @@ def predict(model, test_loader):
     return predictions, score/len(test_loader)
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 100
+    NUM_EPOCHS = 1
     EARLY_STOPPING = 50
     MODEL_NAME = "test"
     max_nr_hits = 800
@@ -116,7 +124,7 @@ if __name__ == "__main__":
     torch.manual_seed(37)  # for reproducibility
 
     # Load and split dataset into training, validation and test sets, and get dataloaders
-    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="trackml_1to50tracks.csv", max_num_hits=max_nr_hits)
+    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="nr_hits.csv", max_num_hits=max_nr_hits)
     dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
     train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,
@@ -167,3 +175,6 @@ if __name__ == "__main__":
         if count >= EARLY_STOPPING:
             print("Early stopping...")
             break
+
+    preds, score = predict(transformer, test_loader)
+    print(score)
