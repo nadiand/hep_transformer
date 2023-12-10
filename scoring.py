@@ -117,6 +117,45 @@ def score_event(truth, submission):
     good_track = (0.5 < purity_rec) & (0.5 < purity_maj)
     return tracks['major_weight'][good_track].sum()
 
+
+def false_positive_rate(pred_lbl, true_lbl):
+    fp_rate = 0
+    for i in range(len(true_lbl)): #go over every single hit from the event
+        truth_rows, pred_rows = [], []
+        for ind, part in enumerate(true_lbl[i]):
+            truth_rows.append((ind, part[0].item(), part[1].item()))
+
+        for ind, pred in enumerate(pred_lbl[i]):
+            pred_rows.append((ind, pred.item()))
+
+        truth = pd.DataFrame(truth_rows)
+        truth.columns = ['hit_id', 'particle_id', 'weight']
+        submission = pd.DataFrame(pred_rows)
+        submission.columns = ['hit_id', 'track_id']
+        
+        tracks_info = _analyze_tracks(truth, submission)
+        print(tracks_info)
+
+        true_negatives, false_positives = [], []
+        for tid, pid in enumerate(tracks_info['major_particle_id']):
+            hits_not_tid = submission[submission['track_id'] != tid]['hit_id'].values
+            hits_not_pid = truth[truth['particle_id'] != pid]['hit_id'].values
+            true_negatives_pid = len([value for value in hits_not_tid if value in hits_not_pid])
+            true_negatives.append(true_negatives_pid)
+
+            hits_tid = submission[submission['track_id'] == tid]['hit_id'].values
+            false_positives_pid = len([value for value in hits_tid if value in hits_not_pid])
+            false_positives.append(false_positives_pid)
+
+
+        print(false_positives, true_negatives)
+        fp_rates = np.divide(false_positives, [sum(x) for x in zip(false_positives, true_negatives)])
+        print(fp_rates)
+        fp_rate += np.mean(fp_rates)
+    return np.mean(fp_rate)
+
+        
+
 def calc_score(pred_lbl, true_lbl):
     """
     pred_lbl is a tensor containing predicted cluster IDs from a single event
