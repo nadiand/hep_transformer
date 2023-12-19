@@ -15,16 +15,35 @@ def split_data(file_name):
     p = np.sqrt(data['x']**2 + data['y']**2 + data['z']**2)
     data['theta'] = np.arccos(data['z']/p)
     data['phi'] = np.arctan2(data['y'], data['x'])
-    
+
+    # bins of theta: (0, 0.5) (0.5, 2.5) (2.5, 3.2)
+    theta_class = []
+    for i in data['theta']:
+        if i > 0.5:
+            if i > 2.5:
+                theta_class.append(3)
+            else:
+                theta_class.append(2)
+        else:
+            theta_class.append(1)
+
+    # bins of phi (-3.2, -1) (-1, 1) (1, 3.2)
+    phi_class = []
+    for i in data['phi']:
+        if i > -1:
+            if i > 1:
+                phi_class.append(3)
+            else:
+                phi_class.append(2)
+        else:
+            phi_class.append(1)
+
+    data['theta_bin'] = theta_class
+    data['phi_bin'] = phi_class
+
     # n_bins is per parameter; so overall there will be n_bins x n_bins many
     n_bins = 3
-    theta_bin_size = ((data['theta'].max()-data['theta'].min()) / n_bins) + 1e-7
-    phi_bin_size = ((data['phi'].max()-data['phi'].min()) / n_bins) + 1e-7
-    data['theta_bin'] = ((data['theta'] - data['theta'].min()) // theta_bin_size).astype(int)
-    data['phi_bin'] = ((data['phi'] - data['phi'].min()) // phi_bin_size).astype(int)
-
-    # leaving 0 empty for when there's padding eventually (TODO is this necessary?)
-    data['subset_id'] = 1 + (data['theta_bin'] * n_bins + data['phi_bin'])
+    data['subset_id'] = (data['theta_bin'] * n_bins + data['phi_bin'])
 
     # Modify event ID so that it is split up into multiple smaller events
     event_ids = []
@@ -32,6 +51,8 @@ def split_data(file_name):
         event_ids.append(val+data['subset_id'][ind])
 
     data['event_id'] = event_ids
+    data.to_csv(f'trackml_subdivided.csv', mode='a', index=False, header=False)
+    print("done")
 
     # Evaluating using trackML (poor evaluator since we don't want a 1-to-1 mapping between
     # subevents and tracks)
@@ -57,8 +78,6 @@ def split_data(file_name):
     for i in range(1, len(particle_ids_per_subset)-1):
         overlapping_particles.append(list(set(particle_ids_per_subset[i]) & set(particle_ids_per_subset[i-1])))
     print(overlapping_particles)
-    
-    data.to_csv(f'trackml_subdivided.csv', mode='a', index=False, header=False)
 
 
 def transform_trackml_data(event_id, min_part_in_event, max_part_in_event, sub_events):
@@ -153,4 +172,3 @@ if __name__ == "__main__":
     
     # Equivalent to not splitting the event into multiple ones
     # transform_trackml_data(event_id='21000', min_part_in_event=1, max_part_in_event=5, sub_events=1)
-
