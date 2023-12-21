@@ -7,8 +7,8 @@ import pandas as pd
 from torch.utils.data import DataLoader
 
 from model_flashattn import TransformerClassifier, PAD_TOKEN, save_model
-from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
-from scoring import calc_score, calc_score_trackml
+from dataset import HitsDataset
+from scoring import calc_score_trackml
 from trackml_data import load_trackml_data
 from sklearn.metrics import pairwise_distances
 
@@ -123,19 +123,9 @@ if __name__ == "__main__":
     NUM_EPOCHS = 1
     EARLY_STOPPING = 50
     MODEL_NAME = "test"
-    max_nr_hits = 800
+    hits_per_event = 1350
 
     torch.manual_seed(37)  # for reproducibility
-
-    # Load and split dataset into training, validation and test sets, and get dataloaders
-    # hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="nr_hits.csv", max_num_hits=max_nr_hits)
-    # dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
-    # train_loader, valid_loader, test_loader = get_dataloaders(dataset,
-    #                                                           train_frac=0.7,
-    #                                                           valid_frac=0.15,
-    #                                                           test_frac=0.15,
-    #                                                           batch_size=2)
-    print("data loaded")
 
     # Transformer model
     transformer = TransformerClassifier(num_encoder_layers=6,
@@ -160,7 +150,7 @@ if __name__ == "__main__":
     for epoch in range(NUM_EPOCHS):
         # Train the model
         train_losses = []
-        with pd.read_csv("trackml_train_data_subdivided.csv", chunksize=4) as reader:
+        with pd.read_csv("nr_hits.csv", chunksize=8*hits_per_event) as reader:
             for chunk in reader:
                 hits_data, track_params_data, track_classes_data = load_trackml_data(chunk)
                 dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
@@ -169,8 +159,9 @@ if __name__ == "__main__":
                 train_losses.append(loss)
         train_loss = np.array(train_losses).mean()
 
+        # Evaluate using validation split
         validation_losses = []
-        with pd.read_csv("trackml_validation_data_subdivided.csv", chunksize=4) as reader:
+        with pd.read_csv("trackml_validation_data_subdivided.csv", chunksize=8*hits_per_event) as reader:
             for chunk in reader:
                 hits_data, track_params_data, track_classes_data = load_trackml_data(chunk)
                 dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
@@ -179,8 +170,8 @@ if __name__ == "__main__":
                 validation_losses.append(loss)
         val_loss = np.array(validation_losses).mean()
         
+        # Bookkeeping
         print(f"Epoch: {epoch}\nVal loss: {val_loss:.8f}, Train loss: {train_loss:.8f}")
-
         train_losses.append(train_loss)
         val_losses.append(val_loss)
 
@@ -198,8 +189,9 @@ if __name__ == "__main__":
             print("Early stopping...")
             break
 
+    # Test generalizability of model on test set
     scores = []
-    with pd.read_csv("trackml_test_data_subdivided.csv", chunksize=4) as reader:
+    with pd.read_csv("trackml_test_data_subdivided.csv", chunksize=hits_per_event) as reader:
         for chunk in reader:
             hits_data, track_params_data, track_classes_data = load_trackml_data(chunk)
             dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
