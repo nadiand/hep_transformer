@@ -6,13 +6,9 @@ import argparse
 
 from model import PAD_TOKEN
 
-import numpy as np
-import pandas as pd
-
-
 def split_event(data, event_id):
     # print(data)
-    overlap = 0.
+    overlap = 0.2
 
     # Calculate theta and phi of each hit
     p = np.sqrt(data['x']**2 + data['y']**2 + data['z']**2)
@@ -23,9 +19,9 @@ def split_event(data, event_id):
     data['theta_bin2'] = np.logical_and(data['theta'] >= 0.5 - overlap, data['theta'] < 2.5 + overlap)
     data['theta_bin3'] = data['theta'] >= 2.5 - overlap
 
-    data['phi_bin1'] = data['phi'] < -1 + overlap
+    data['phi_bin1'] = np.logical_or(data['phi'] < -1 + overlap, data['phi'] > np.pi - overlap)
     data['phi_bin2'] = np.logical_and(data['phi'] >= -1 - overlap, data['phi'] < 1 + overlap)
-    data['phi_bin3'] = data['phi'] >= 1 - overlap
+    data['phi_bin3'] = np.logical_or(data['phi'] >= 1 - overlap, data['phi'] < -np.pi + overlap)
 
     data['class1'] = np.logical_and(data['phi_bin1'], data['theta_bin1'])
     data['class2'] = np.logical_and(data['phi_bin2'], data['theta_bin1'])
@@ -71,32 +67,25 @@ def split_event(data, event_id):
     new_data = pd.DataFrame(new_rows, columns=data.columns)
     new_data['event_class'] = event_class
 
-    # for e in new_data['event_class'].unique().tolist():
-    #     event_len = len(new_data[new_data['event_class'] == e])
-    #     print(event_len)
+    # print(new_data[["x", "y", "z", "theta", "phi", "event_class", "particle_id"]])
 
-    # print(new_data)
-
-    # all overlap, so they are all part of the same class
-    # new_data['event_class'] = [1]*len(new_data)
-
-    evaluate_split_event(new_data)
+    evaluate_split_event(data, new_data)
 
     # event_class is now the new event_id to follow for separation between events!
     return new_data[["x", "y", "z", "volume_id", "vx", "vy", "vz", "px", "py", "pz", "q", "particle_id", "weight_x", "event_id", "event_class"]] 
 
-def evaluate_split_event(data):
+def evaluate_split_event(old_data, data):
     # Make a dictionary with all particle_ids and the number of hits they have
-    all_particle_ids = data['particle_id'].unique().tolist()
+    all_particle_ids = old_data['particle_id'].unique().tolist()
     particle_dict = {}
     for part_id in all_particle_ids:
-        indices = data['particle_id'] == part_id
-        particle_dict[part_id] = len(data[indices])
+        indices = old_data['particle_id'] == part_id
+        particle_dict[part_id] = len(old_data[indices])
 
+    portions = {}
     # Check for each event class, for each particle in it, how many hits of that particle
     # are in the event class and find the ratio (hits of that particle in this class)/(all hits for that particle)
     class_ids = data['event_class'].unique().tolist()
-    portions = []
     for cl_id in class_ids:
         indices = data['event_class'] == cl_id
         hits_data = data[indices]
@@ -104,9 +93,14 @@ def evaluate_split_event(data):
         for part_id in particle_ids:
             indices = hits_data['particle_id'] == part_id
             nr_hits_in_class = len(hits_data[indices])
-            portions.append(nr_hits_in_class/particle_dict[part_id])
+            if part_id not in portions.keys():
+                portions[part_id] = nr_hits_in_class/particle_dict[part_id]
+            else:
+                if nr_hits_in_class/particle_dict[part_id] > portions[part_id]:
+                    portions[part_id] = nr_hits_in_class/particle_dict[part_id]
 
-    portions_arr = np.array(portions)
+    portions_arr = np.array(list(portions.values()))
+    print(portions_arr)
     print("Average efficiency:", portions_arr.mean())
     print("Efficiency standard dev:", portions_arr.std())
 
@@ -131,19 +125,21 @@ def transform_trackml_data(event_id):
     ready_data = split_data.sort_values('event_class')
 
     # Write the sub-events to a file
-    data_type = random.choices(["train", "test", "val"], cum_weights=[70, 15, 15])[0]
-    if data_type == "train":
-        ready_data.to_csv('trackml_train_data_subdivided.csv', mode='a', index=False, header=False)
-    elif data_type == "test":
-        ready_data.to_csv('trackml_test_data_subdivided.csv', mode='a', index=False, header=False)
-    else:
-        ready_data.to_csv('trackml_validation_data_subdivided.csv', mode='a', index=False, header=False)
+    # data_type = random.choices(["train", "test", "val"], cum_weights=[70, 15, 15])[0]
+    # if data_type == "train":
+    #     ready_data.to_csv('trackml_train_data_subdivided.csv', mode='a', index=False, header=False)
+    # elif data_type == "test":
+    #     ready_data.to_csv('trackml_test_data_subdivided.csv', mode='a', index=False, header=False)
+    # else:
+    #     ready_data.to_csv('trackml_validation_data_subdivided.csv', mode='a', index=False, header=False)
 
 
 def load_trackml_data(data, normalize=False):
     # Find the max number of hits in the batch to pad up to
     events = data['event_class'].unique()
     event_lens = [len(data[data['event_class'] == event]) for event in events]
+    # events = data['event_id'].unique()
+    # event_lens = [len(data[data['event_id'] == event]) for event in events]
     max_num_hits = max(event_lens)
 
     # Normalize the data if applicable
@@ -155,6 +151,7 @@ def load_trackml_data(data, normalize=False):
 
     # Shuffling the data and grouping by event ID
     data = data.sample(frac=1)
+    # data_grouped_by_event = data.groupby("event_id")
     data_grouped_by_event = data.groupby("event_class")
 
     def extract_hits_data(event_rows):
@@ -194,10 +191,9 @@ if __name__ == "__main__":
     # args = argparser.parse_args()
     # transform_trackml_data(args.event_id)
     
-    # Equivalent to not splitting the event into multiple ones
     transform_trackml_data(event_id='21000')
 
-    # rows = {'x' : [5, -1, 2.5, -387.148], 'y': [-1, 12, 0.8, 732.288], 'z': [7, -4, -0.2, 2544.5], 'particle_id': [1, 0, 1, 2]}
+    # rows = {'theta' : [0.3, 0.7], 'phi': [0.2, 0.4], 'particle_id': [1, 1]}
     # df = pd.DataFrame(rows)
     # new_df = split_event(df, 21000)
     
