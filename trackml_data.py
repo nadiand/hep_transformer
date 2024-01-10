@@ -8,7 +8,7 @@ from model import PAD_TOKEN
 
 # TODO: extremely hard-coded, make it more general
 def split_event(data, event_id):
-    overlap = 0.2
+    overlap_theta = overlap_phi = 0.2
 
     # Calculate theta and phi of each hit
     p = np.sqrt(data['x']**2 + data['y']**2 + data['z']**2)
@@ -16,14 +16,14 @@ def split_event(data, event_id):
     data['phi'] = np.arctan2(data['y'], data['x'])
 
     # Create the bins of theta (values currently chosen based on distribution of theta)
-    data['theta_bin1'] = data['theta'] < 0.5 + overlap
-    data['theta_bin2'] = np.logical_and(data['theta'] >= 0.5 - overlap, data['theta'] < 2.5 + overlap)
-    data['theta_bin3'] = data['theta'] >= 2.5 - overlap
+    data['theta_bin1'] = data['theta'] < 0.5 + overlap_theta
+    data['theta_bin2'] = np.logical_and(data['theta'] >= 0.5 - overlap_theta, data['theta'] < 2.5 + overlap_theta)
+    data['theta_bin3'] = data['theta'] >= 2.5 - overlap_theta
 
     # Create the bins of phi (values currently chosen based on distribution of theta)
-    data['phi_bin1'] = np.logical_or(data['phi'] < -1 + overlap, data['phi'] > np.pi - overlap)
-    data['phi_bin2'] = np.logical_and(data['phi'] >= -1 - overlap, data['phi'] < 1 + overlap)
-    data['phi_bin3'] = np.logical_or(data['phi'] >= 1 - overlap, data['phi'] < -np.pi + overlap)
+    data['phi_bin1'] = np.logical_or(data['phi'] < -1 + overlap_phi, data['phi'] > np.pi - overlap_phi)
+    data['phi_bin2'] = np.logical_and(data['phi'] >= -1 - overlap_phi, data['phi'] < 1 + overlap_phi)
+    data['phi_bin3'] = np.logical_or(data['phi'] >= 1 - overlap_phi, data['phi'] < -np.pi + overlap_phi)
 
     # Create the bins of theta-phi combinations
     data['class1'] = np.logical_and(data['phi_bin1'], data['theta_bin1'])
