@@ -6,8 +6,8 @@ import argparse
 
 from model import PAD_TOKEN
 
+# TODO: extremely hard-coded, make it more general
 def split_event(data, event_id):
-    # print(data)
     overlap = 0.2
 
     # Calculate theta and phi of each hit
@@ -15,14 +15,17 @@ def split_event(data, event_id):
     data['theta'] = np.arccos(data['z']/p)
     data['phi'] = np.arctan2(data['y'], data['x'])
 
+    # Create the bins of theta (values currently chosen based on distribution of theta)
     data['theta_bin1'] = data['theta'] < 0.5 + overlap
     data['theta_bin2'] = np.logical_and(data['theta'] >= 0.5 - overlap, data['theta'] < 2.5 + overlap)
     data['theta_bin3'] = data['theta'] >= 2.5 - overlap
 
+    # Create the bins of phi (values currently chosen based on distribution of theta)
     data['phi_bin1'] = np.logical_or(data['phi'] < -1 + overlap, data['phi'] > np.pi - overlap)
     data['phi_bin2'] = np.logical_and(data['phi'] >= -1 - overlap, data['phi'] < 1 + overlap)
     data['phi_bin3'] = np.logical_or(data['phi'] >= 1 - overlap, data['phi'] < -np.pi + overlap)
 
+    # Create the bins of theta-phi combinations
     data['class1'] = np.logical_and(data['phi_bin1'], data['theta_bin1'])
     data['class2'] = np.logical_and(data['phi_bin2'], data['theta_bin1'])
     data['class3'] = np.logical_and(data['phi_bin3'], data['theta_bin1'])
@@ -33,6 +36,10 @@ def split_event(data, event_id):
     data['class8'] = np.logical_and(data['phi_bin2'], data['theta_bin3'])
     data['class9'] = np.logical_and(data['phi_bin3'], data['theta_bin3'])
 
+    # For every row in the dataset, check which "classes" it got assigned to
+    # and add all of them to a new list of rows. Necessary step since the overlap
+    # might lead to the same hit belonging in e.g. 3 different "classes" and in 
+    # that case we want that row to be duplicated with a different event ID 3 times
     event_class = []
     new_rows = []
     for _, row in data.iterrows():
@@ -64,14 +71,16 @@ def split_event(data, event_id):
             event_class.append(f"{event_id}_9")
             new_rows.append(row)
 
+    # Create the new dataframe with the newly composed lists
     new_data = pd.DataFrame(new_rows, columns=data.columns)
     new_data['event_class'] = event_class
+    print(new_data['event_class'].value_counts())
 
-    # print(new_data[["x", "y", "z", "theta", "phi", "event_class", "particle_id"]])
-
+    # Evaluate the split by calculating its "efficiency" score
     evaluate_split_event(data, new_data)
 
-    # event_class is now the new event_id to follow for separation between events!
+    # Important: event_class is now the new event_id to follow for separation 
+    # between events in other scripts!
     return new_data[["x", "y", "z", "volume_id", "vx", "vy", "vz", "px", "py", "pz", "q", "particle_id", "weight_x", "event_id", "event_class"]] 
 
 def evaluate_split_event(old_data, data):
@@ -82,10 +91,12 @@ def evaluate_split_event(old_data, data):
         indices = old_data['particle_id'] == part_id
         particle_dict[part_id] = len(old_data[indices])
 
-    portions = {}
-    # Check for each event class, for each particle in it, how many hits of that particle
-    # are in the event class and find the ratio (hits of that particle in this class)/(all hits for that particle)
+    # For every track/particle, calculate the ratio that shows how well represented 
+    # it is by the class it's in: (hits of that particle in this class)/(all hits for that particle).
+    # Where we go over each class and each particle, so that if a particle is in multiple
+    # classes, we take the one it's best represented in
     class_ids = data['event_class'].unique().tolist()
+    portions = {}
     for cl_id in class_ids:
         indices = data['event_class'] == cl_id
         hits_data = data[indices]
@@ -136,10 +147,10 @@ def transform_trackml_data(event_id):
 
 def load_trackml_data(data, normalize=False):
     # Find the max number of hits in the batch to pad up to
-    events = data['event_class'].unique()
-    event_lens = [len(data[data['event_class'] == event]) for event in events]
-    # events = data['event_id'].unique()
-    # event_lens = [len(data[data['event_id'] == event]) for event in events]
+    # events = data['event_class'].unique()
+    # event_lens = [len(data[data['event_class'] == event]) for event in events]
+    events = data['event_id'].unique()
+    event_lens = [len(data[data['event_id'] == event]) for event in events]
     max_num_hits = max(event_lens)
 
     # Normalize the data if applicable
@@ -151,8 +162,8 @@ def load_trackml_data(data, normalize=False):
 
     # Shuffling the data and grouping by event ID
     data = data.sample(frac=1)
-    # data_grouped_by_event = data.groupby("event_id")
-    data_grouped_by_event = data.groupby("event_class")
+    data_grouped_by_event = data.groupby("event_id")
+    # data_grouped_by_event = data.groupby("event_class")
 
     def extract_hits_data(event_rows):
         # Returns the hit coordinates as a padded sequence; this is the input to the transformer
