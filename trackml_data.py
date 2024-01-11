@@ -3,13 +3,12 @@ import numpy as np
 import pandas as pd
 import random
 import argparse
-import matplotlib.pyplot as plt
 
 from model import PAD_TOKEN
 
+
 def make_bins(data, parameter, bin_edges, overlap):
     num_bins = len(bin_edges) - 1
-    print(num_bins)
     bin_names = [f'{parameter}_bin{i}' for i in range(1, num_bins + 1)]
 
     for i in range(num_bins):
@@ -22,7 +21,7 @@ def make_bins(data, parameter, bin_edges, overlap):
         else:
             data[bin_names[i]] = np.logical_and(data[parameter] >= lower_threshold, data[parameter] < upper_threshold)
 
-# TODO: extremely hard-coded, make it more general - this only works for 9 bins
+
 def split_event(data, event_id):
     overlap_theta = overlap_phi = 0.2
 
@@ -39,18 +38,15 @@ def split_event(data, event_id):
     phi_bin_edges = np.array([-np.pi, -1, 1, np.pi])
     make_bins(data, 'phi', phi_bin_edges, overlap_phi)
     
-
-
     # Create the bins of theta-phi combinations
-    data['class1'] = np.logical_and(data['phi_bin1'], data['theta_bin1'])
-    data['class2'] = np.logical_and(data['phi_bin2'], data['theta_bin1'])
-    data['class3'] = np.logical_and(data['phi_bin3'], data['theta_bin1'])
-    data['class4'] = np.logical_and(data['phi_bin1'], data['theta_bin2'])
-    data['class5'] = np.logical_and(data['phi_bin2'], data['theta_bin2'])
-    data['class6'] = np.logical_and(data['phi_bin3'], data['theta_bin2'])
-    data['class7'] = np.logical_and(data['phi_bin1'], data['theta_bin3'])
-    data['class8'] = np.logical_and(data['phi_bin2'], data['theta_bin3'])
-    data['class9'] = np.logical_and(data['phi_bin3'], data['theta_bin3'])
+    classes = []
+    for phi_bin in range(1, len(phi_bin_edges)):
+        for theta_bin in range(1, len(theta_bin_edges)):
+            class_name = f'class_{phi_bin}_{theta_bin}'
+            phi_condition = data[f'phi_bin{phi_bin}']
+            theta_condition = data[f'theta_bin{theta_bin}']
+            data[class_name] = np.logical_and(phi_condition, theta_condition)
+            classes.append(class_name)
 
     # For every row in the dataset, check which "classes" it got assigned to
     # and add all of them to a new list of rows. Necessary step since the overlap
@@ -58,34 +54,11 @@ def split_event(data, event_id):
     # that case we want that row to be duplicated with a different event ID 3 times
     event_class = []
     new_rows = []
-    for _, row in data.iterrows():
-        if row['class1']:
-            event_class.append(f"{event_id}_1")
+    for i, class_name in enumerate(classes):
+        for _, row in data[data[class_name]].iterrows():
+            event_class.append(f"{event_id}_{i}")
             new_rows.append(row)
-        if row['class2']:
-            event_class.append(f"{event_id}_2")
-            new_rows.append(row)
-        if row['class3']:
-            event_class.append(f"{event_id}_3")
-            new_rows.append(row)
-        if row['class4']:
-            event_class.append(f"{event_id}_4")
-            new_rows.append(row)
-        if row['class5']:
-            event_class.append(f"{event_id}_5")
-            new_rows.append(row)
-        if row['class6']:
-            event_class.append(f"{event_id}_6")
-            new_rows.append(row)
-        if row['class7']:
-            event_class.append(f"{event_id}_7")
-            new_rows.append(row)
-        if row['class8']:
-            event_class.append(f"{event_id}_8")
-            new_rows.append(row)
-        if row['class9']:
-            event_class.append(f"{event_id}_9")
-            new_rows.append(row)
+
 
     # Create the new dataframe with the newly composed lists
     new_data = pd.DataFrame(new_rows, columns=data.columns)
