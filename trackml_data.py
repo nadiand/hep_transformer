@@ -3,10 +3,26 @@ import numpy as np
 import pandas as pd
 import random
 import argparse
+import matplotlib.pyplot as plt
 
 from model import PAD_TOKEN
 
-# TODO: extremely hard-coded, make it more general
+def make_bins(data, parameter, bin_edges, overlap):
+    num_bins = len(bin_edges) - 1
+    print(num_bins)
+    bin_names = [f'{parameter}_bin{i}' for i in range(1, num_bins + 1)]
+
+    for i in range(num_bins):
+        lower_threshold = bin_edges[i] - overlap
+        upper_threshold = bin_edges[i + 1] + overlap
+        if i == 0 and parameter == 'phi':
+            data[bin_names[i]] = np.logical_or(data[parameter] < upper_threshold, data[parameter] > np.pi - overlap)
+        elif i == num_bins-1 and parameter == 'phi':
+            data[bin_names[i]] = np.logical_or(data[parameter] >= lower_threshold, data[parameter] < -np.pi + overlap)
+        else:
+            data[bin_names[i]] = np.logical_and(data[parameter] >= lower_threshold, data[parameter] < upper_threshold)
+
+# TODO: extremely hard-coded, make it more general - this only works for 9 bins
 def split_event(data, event_id):
     overlap_theta = overlap_phi = 0.2
 
@@ -16,14 +32,14 @@ def split_event(data, event_id):
     data['phi'] = np.arctan2(data['y'], data['x'])
 
     # Create the bins of theta (values currently chosen based on distribution of theta)
-    data['theta_bin1'] = data['theta'] < 0.5 + overlap_theta
-    data['theta_bin2'] = np.logical_and(data['theta'] >= 0.5 - overlap_theta, data['theta'] < 2.5 + overlap_theta)
-    data['theta_bin3'] = data['theta'] >= 2.5 - overlap_theta
+    theta_bin_edges = np.array([-np.pi, 0.5, 2.5, np.pi])
+    make_bins(data, 'theta', theta_bin_edges, overlap_theta)
 
     # Create the bins of phi (values currently chosen based on distribution of theta)
-    data['phi_bin1'] = np.logical_or(data['phi'] < -1 + overlap_phi, data['phi'] > np.pi - overlap_phi)
-    data['phi_bin2'] = np.logical_and(data['phi'] >= -1 - overlap_phi, data['phi'] < 1 + overlap_phi)
-    data['phi_bin3'] = np.logical_or(data['phi'] >= 1 - overlap_phi, data['phi'] < -np.pi + overlap_phi)
+    phi_bin_edges = np.array([-np.pi, -1, 1, np.pi])
+    make_bins(data, 'phi', phi_bin_edges, overlap_phi)
+    
+
 
     # Create the bins of theta-phi combinations
     data['class1'] = np.logical_and(data['phi_bin1'], data['theta_bin1'])
