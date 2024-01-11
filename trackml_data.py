@@ -3,6 +3,9 @@ import numpy as np
 import pandas as pd
 import random
 import argparse
+import matplotlib.pyplot as plt
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 from model import PAD_TOKEN
 
@@ -23,7 +26,7 @@ def make_bins(data, parameter, bin_edges, overlap):
 
 
 def split_event(data, event_id):
-    overlap_theta = overlap_phi = 0.2
+    overlap_theta = overlap_phi = 0.
 
     # Calculate theta and phi of each hit
     p = np.sqrt(data['x']**2 + data['y']**2 + data['z']**2)
@@ -31,12 +34,17 @@ def split_event(data, event_id):
     data['phi'] = np.arctan2(data['y'], data['x'])
 
     # Create the bins of theta (values currently chosen based on distribution of theta)
-    theta_bin_edges = np.array([-np.pi, 0.5, 2.5, np.pi])
+    # theta_bin_edges = np.array([0, 0.5, 2.5, np.pi]) # 3 bins
+    theta_bin_edges = np.array([0, 0.3, 1.45, 2.8, np.pi]) # 4 bins
     make_bins(data, 'theta', theta_bin_edges, overlap_theta)
 
-    # Create the bins of phi (values currently chosen based on distribution of theta)
-    phi_bin_edges = np.array([-np.pi, -1, 1, np.pi])
+    # Create the bins of phi (values currently chosen based on distribution of phi)
+    # phi_bin_edges = np.array([-np.pi, -1, 1, np.pi]) # 3 bins
+    phi_bin_edges = np.array([-np.pi, -1.57, 0, 1.57, np.pi]) # 4 bins
     make_bins(data, 'phi', phi_bin_edges, overlap_phi)
+
+    # plt.hist(data['phi'].values, bins=[-np.pi, -1.57, 0, 1.57, np.pi])
+    # plt.show()
     
     # Create the bins of theta-phi combinations
     classes = []
@@ -58,7 +66,6 @@ def split_event(data, event_id):
         for _, row in data[data[class_name]].iterrows():
             event_class.append(f"{event_id}_{i}")
             new_rows.append(row)
-
 
     # Create the new dataframe with the newly composed lists
     new_data = pd.DataFrame(new_rows, columns=data.columns)
