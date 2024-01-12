@@ -6,7 +6,7 @@ from hdbscan import HDBSCAN
 import pandas as pd
 from torch.utils.data import DataLoader
 
-from model_flashattn import TransformerClassifier, PAD_TOKEN, save_model
+from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset
 from scoring import calc_score_trackml
 from trackml_data import load_trackml_data
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     NUM_EPOCHS = 1
     EARLY_STOPPING = 50
     MODEL_NAME = "test"
-    hits_per_event = 1350
+    hits_per_event = 50
 
     torch.manual_seed(37)  # for reproducibility
 
@@ -150,11 +150,11 @@ if __name__ == "__main__":
     for epoch in range(NUM_EPOCHS):
         # Train the model
         train_losses = []
-        with pd.read_csv("nr_hits.csv", chunksize=8*hits_per_event) as reader:
+        with pd.read_csv("trackml_1to5tracks.csv", chunksize=hits_per_event) as reader:
             for chunk in reader:
                 hits_data, track_params_data, track_classes_data = load_trackml_data(chunk)
                 dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
-                train_loader = DataLoader(dataset, batch_size=8, shuffle=False)
+                train_loader = DataLoader(dataset, batch_size=1, shuffle=False)
                 loss = train_epoch(transformer, optimizer, train_loader, loss_fn)
                 train_losses.append(loss)
         train_loss = np.array(train_losses).mean()
