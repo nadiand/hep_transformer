@@ -11,3 +11,4 @@ hits_and_tracks_*
 *_last
 *.csv
 scratch_pad/
+.vscode/
