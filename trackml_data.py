@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
-from model import PAD_TOKEN
+# from model import PAD_TOKEN
+PAD_TOKEN = 0
 
 
 def make_bins(data, parameter, bin_edges, overlap):

@@ -31,7 +31,7 @@ optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
 scaler = torch.cuda.amp.GradScaler()
 
 max_nr_hits = 600
-hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_50tracks.csv", max_num_hits=max_nr_hits)
+hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_50tracks.csv")
 dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
 train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,
