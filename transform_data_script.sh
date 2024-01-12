@@ -1,20 +1,18 @@
 #!/bin/bash
-#SBATCH --job-name=data_creation          # Job name
+#SBATCH --job-name=float16          # Job name
 #SBATCH --ntasks=1                    # Run on a single GPU
 #SBATCH --time=48:00:00               # Time limit hrs:min:sec
 #SBATCH --partition=gpu
 #SBATCH --gpus-per-node=1
 #SBATCH --mail-type=BEGIN,END
 
-cd /projects/0/nisei0750/nadia/
+cd /projects/0/nisei0750/nadia/repo/hep_transformer/
 
 module purge
 module load 2022 Python/3.10.4-GCCcore-11.3.0
+module load CUDA/11.8.0
+module load cuDNN/8.6.0.163-CUDA-11.8.0
 
-pip install torch==1.13.1
-pip install scikit-learn
-pip install pandas
+pip install torch==2.1.0
 
-for i in {21000..30000} ; do
-    python trackml_data.py -e ${i} -l 50 -u 100 -s 1
-done
+python model.py
