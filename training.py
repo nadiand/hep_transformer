@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 from hdbscan import HDBSCAN
 
-from model_flashattn import TransformerClassifier, PAD_TOKEN, save_model
+from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
 from scoring import calc_score
 
@@ -12,7 +12,7 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def clustering(pred_params):
     # clustering_algorithm = HDBSCAN()
-    clustering_algorithm = AgglomerativeClustering(n_clusters=None, distance_threshold=0.1)
+    clustering_algorithm = AgglomerativeClustering(n_clusters=None, distance_threshold=1.15)
     cluster_labels = []
     for _, event_prediction in enumerate(pred_params):
         regressed_params = np.array(event_prediction.tolist())

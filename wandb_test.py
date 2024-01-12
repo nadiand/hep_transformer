@@ -1,6 +1,5 @@
 import torch
 from model import TransformerClassifier
-from training import predict
 from dataset import HitsDataset, get_dataloaders, load_linear_3d_data, load_linear_2d_data, load_curved_3d_data
 from training import *
 import wandb
