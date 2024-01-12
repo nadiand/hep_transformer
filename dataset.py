@@ -3,7 +3,8 @@ from torch.utils.data import DataLoader, Dataset, random_split
 import numpy as np
 import pandas as pd
 
-from model import PAD_TOKEN
+# from model import PAD_TOKEN
+PAD_TOKEN = 0
 
 class HitsDataset(Dataset):
 
