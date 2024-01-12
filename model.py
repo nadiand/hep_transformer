@@ -40,6 +40,12 @@ train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               batch_size=32)
 print('data loaded')
 
+x = torch.Tensor([np.array([[-124.452,-85.585,-1502.0],[-107.377,-75.1006,-1302.0],[-90.5351,-64.3412,-1102.0]]), np.array([[-49.4727,-58.4256,-1298.0],[-41.6409,-49.6406,-1098.0]])])
+y = torch.Tensor([np.array([0.2]), np.array([0.5]), np.array([0.3])])
+
+dummy_dataset = TensorDataset(x, y)
+dummy_dataloader = DataLoader(dummy_dataset)
+
 def train_epoch(model, optim, train_loader, loss_fn, scaler):
     '''
     Conducts a single epoch of training: prediction, loss calculation, and loss
@@ -51,6 +57,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
     losses = 0.
     for data in train_loader:
         _, x, y, _ = data
+        print(x)
         optim.zero_grad()
 
         # Make prediction
@@ -71,4 +78,4 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
 
     return losses / len(train_loader)
 
-train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn, scaler)
+train_loss = train_epoch(transformer, optimizer, dummy_dataloader, loss_fn, scaler)
