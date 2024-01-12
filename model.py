@@ -29,7 +29,7 @@ optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
 scaler = torch.cuda.amp.GradScaler()
 
 dummy_x = torch.Tensor([np.array([0.2, 0.5]), np.array([0.5, 0.1]), np.array([0.3, 0.3])])
-dummy_y = torch.Tensor([np.array([0.2]), np.array([0.5]), np.array([0.3])])
+dummy_y = torch.Tensor([np.array([0.2, 0.2]), np.array([0.5, 0.5]), np.array([0.3, 0.3])])
 
 dummy_dataset = TensorDataset(dummy_x, dummy_y)
 dummy_dataloader = DataLoader(dummy_dataset)
