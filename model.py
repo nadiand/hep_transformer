@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader, TensorDataset
+from dataset import HitsDataset, get_dataloaders, load_linear_3d_data, load_linear_2d_data, load_curved_3d_data
+from trackml_data import load_trackml_data
 
 
 class TransformerClassifier(nn.Module):
@@ -28,11 +30,15 @@ loss_fn = nn.MSELoss()
 optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
 scaler = torch.cuda.amp.GradScaler()
 
-dummy_x = torch.Tensor([np.array([0.2, 0.5]), np.array([0.5, 0.1]), np.array([0.3, 0.3])])
-dummy_y = torch.Tensor([np.array([0.2, 0.2]), np.array([0.5, 0.5]), np.array([0.3, 0.3])])
-
-dummy_dataset = TensorDataset(dummy_x, dummy_y)
-dummy_dataloader = DataLoader(dummy_dataset)
+max_nr_hits = 600
+hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_50tracks.csv", max_num_hits=max_nr_hits)
+dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
+train_loader, valid_loader, test_loader = get_dataloaders(dataset,
+                                                              train_frac=0.7,
+                                                              valid_frac=0.15,
+                                                              test_frac=0.15,
+                                                              batch_size=32)
+print('data loaded')
 
 def train_epoch(model, optim, train_loader, loss_fn, scaler):
     '''
@@ -65,4 +71,4 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
 
     return losses / len(train_loader)
 
-train_loss = train_epoch(transformer, optimizer, dummy_dataloader, loss_fn, scaler)
+train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn, scaler)

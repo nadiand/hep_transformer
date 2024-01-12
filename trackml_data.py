@@ -141,10 +141,11 @@ def transform_trackml_data(event_id):
     #     ready_data.to_csv('trackml_validation_data_subdivided.csv', mode='a', index=False, header=False)
 
 
-def load_trackml_data(data, normalize=False):
+def load_trackml_data(data_path, normalize=False):
     # Find the max number of hits in the batch to pad up to
     # events = data['event_class'].unique()
     # event_lens = [len(data[data['event_class'] == event]) for event in events]
+    data = pd.read_csv(data_path).head(600*10)
     events = data['event_id'].unique()
     event_lens = [len(data[data['event_id'] == event]) for event in events]
     max_num_hits = max(event_lens)
