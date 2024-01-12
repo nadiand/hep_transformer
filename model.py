@@ -1,15 +1,8 @@
 import torch
 import torch.nn as nn
 import numpy as np
+from torch.utils.data import DataLoader, TensorDataset
 
-PAD_TOKEN = -1
-
-class AngleDifferenceLoss(nn.Module):
-    def __init__(self):
-        super(AngleDifferenceLoss, self).__init__()
-
-    def forward(self, predictions, targets):
-        return torch.mean((((predictions - targets) + np.pi) % 2*np.pi) - np.pi)
 
 class TransformerClassifier(nn.Module):
     '''
@@ -17,28 +10,59 @@ class TransformerClassifier(nn.Module):
     Takes the hits (i.e 2D or 3D coordinates) and outputs the probability of each
     hit belonging to each of the 20 possible tracks (classes).
     '''
-    def __init__(self, num_encoder_layers, d_model, n_head, input_size, output_size, dim_feedforward, dropout):
+    def __init__(self):
         super(TransformerClassifier, self).__init__()
-        self.input_layer = nn.Linear(input_size, d_model)
-        encoder_layers = nn.TransformerEncoderLayer(d_model, n_head, dim_feedforward, dropout, batch_first=True)
-        self.encoder = nn.TransformerEncoder(encoder_layers, num_encoder_layers)
-        self.dropout = nn.Dropout(dropout)
-        self.decoder = nn.Linear(d_model, output_size)
+        encoder_layers = nn.TransformerEncoderLayer(2, 1, 4, 0, batch_first=True)
+        self.encoder = nn.TransformerEncoder(encoder_layers, 1)
 
-    def forward(self, input, padding_mask):
-        x = self.input_layer(input)
-        memory = self.encoder(src=x, src_key_padding_mask=padding_mask)
-        memory = self.dropout(memory)
-        out = self.decoder(memory)
-        return out
+    def forward(self, x):
+        memory = self.encoder(src=x)
+        return memory
 
-def save_model(model, optim, type, val_losses, train_losses, epoch, count, file_name):
-    print(f"Saving {type} model")
-    torch.save({
-        'epoch': epoch,
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optim.state_dict(),
-        'train_losses': train_losses,
-        'val_losses': val_losses,
-        'count': count,
-    }, f"{file_name}_{type}")
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+transformer = TransformerClassifier()
+transformer = transformer.to(DEVICE)
+
+loss_fn = nn.MSELoss()
+optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
+scaler = torch.cuda.amp.GradScaler()
+
+dummy_x = torch.Tensor([np.array([0.2, 0.5]), np.array([0.5, 0.1]), np.array([0.3, 0.3])])
+dummy_y = torch.Tensor([np.array([0.2]), np.array([0.5]), np.array([0.3])])
+
+dummy_dataset = TensorDataset(dummy_x, dummy_y)
+dummy_dataloader = DataLoader(dummy_dataset)
+
+def train_epoch(model, optim, train_loader, loss_fn, scaler):
+    '''
+    Conducts a single epoch of training: prediction, loss calculation, and loss
+    backpropagation. Returns the average loss over the whole train data.
+    '''
+    # Get the network in train mode
+    torch.set_grad_enabled(True)
+    model.train()
+    losses = 0.
+    for data in train_loader:
+        x, y = data
+        optim.zero_grad()
+
+        # Make prediction
+        x = x.to(DEVICE)
+        y = y.to(DEVICE)
+        with torch.cuda.amp.autocast():
+            pred = model(x)
+
+            print(pred)
+
+            # Calculate loss and use it to update weights
+            loss = loss_fn(pred, y)
+        
+        scaler.scale(loss).backward()
+        scaler.step(optim)
+        scaler.update()
+        losses += loss.item()
+
+    return losses / len(train_loader)
+
+train_loss = train_epoch(transformer, optimizer, dummy_dataloader, loss_fn, scaler)
