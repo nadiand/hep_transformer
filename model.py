@@ -14,7 +14,7 @@ class TransformerClassifier(nn.Module):
     '''
     def __init__(self):
         super(TransformerClassifier, self).__init__()
-        encoder_layers = nn.TransformerEncoderLayer(2, 1, 4, 0, batch_first=True)
+        encoder_layers = nn.TransformerEncoderLayer(3, 1, 4, 0, batch_first=True)
         self.encoder = nn.TransformerEncoder(encoder_layers, 1)
 
     def forward(self, x):
