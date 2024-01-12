@@ -33,7 +33,7 @@ def load_linear_2d_data(data_path):
     """
     Note: this function does not pad the data and assumes all events have the same number of hits
     """
-    full_data = pd.read_csv(data_path, sep=",").head(54*100)
+    full_data = pd.read_csv(data_path, sep=",")
     full_data = full_data.sample(frac=1)
     
     data_grouped_by_event = full_data.groupby("event_id")
