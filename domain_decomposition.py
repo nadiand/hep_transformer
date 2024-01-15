@@ -254,7 +254,7 @@ if __name__ == "__main__":
     # plt.show()
 
     # save image to file
-    fig.savefig('efficiency_score_{args.event_id}.png')
+    fig.savefig(f'efficiency_score_{args.event_id}.png')
 
     # plot number of values in each bin
     fig, ax = plt.subplots()

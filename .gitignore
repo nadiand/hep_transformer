@@ -12,4 +12,4 @@ hits_and_tracks_*
 *.csv
 scratch_pad/
 .vscode/
-.png
+*.png
