@@ -22,13 +22,11 @@ class TransformerClassifier(nn.Module):
         self.input_layer = nn.Linear(input_size, d_model)
         encoder_layers = nn.TransformerEncoderLayer(d_model, n_head, dim_feedforward, dropout, batch_first=True)
         self.encoder = nn.TransformerEncoder(encoder_layers, num_encoder_layers)
-        self.dropout = nn.Dropout(dropout)
         self.decoder = nn.Linear(d_model, output_size)
 
     def forward(self, input, padding_mask):
         x = self.input_layer(input)
         memory = self.encoder(src=x, src_key_padding_mask=padding_mask)
-        memory = self.dropout(memory)
         out = self.decoder(memory)
         return out
 
