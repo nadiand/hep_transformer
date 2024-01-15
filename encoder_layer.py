@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 from torch.nn import Module, Linear, Dropout, LayerNorm, MultiheadAttention
-import torch.functional as F
+import torch.nn.functional as F
 from typing import Optional, Any, Union, Callable
 
 class MyEncoderLayer(Module):
