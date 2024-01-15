@@ -156,6 +156,7 @@ class MyEncoderLayer(Module):
 
         x = src
         print(x.dtype)
+        print(self.norm_first)
         if self.norm_first:
             norm_x = self.norm1(x)
             print(norm_x.dtype)
@@ -185,11 +186,19 @@ class MyEncoderLayer(Module):
                            attn_mask=attn_mask,
                            key_padding_mask=key_padding_mask,
                            need_weights=False, is_causal=is_causal)[0]
+        print(x.dtype)
         return self.dropout1(x)
 
     # feed forward block
     def _ff_block(self, x: Tensor) -> Tensor:
-        x = self.linear2(self.dropout(self.activation(self.linear1(x))))
+        x = self.linear1(x)
+        print(x.dtype)
+        x = self.activation(x)
+        print(x.dtype)
+        x = self.dropout(x)
+        print(x.dtype)
+        x = self.linear2(x)
+        print(x.dtype)
         return self.dropout2(x)
     
 def _get_activation_fn(activation: str) -> Callable[[Tensor], Tensor]:
