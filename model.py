@@ -27,73 +27,69 @@ class TransformerClassifier(nn.Module):
 
     def forward(self, input, padding_mask):
         x = self.input_layer(input)
+        print(x.dtype)
         memory = self.encoder(src=x, src_key_padding_mask=padding_mask)
+        print(memory.dtype)
         out = self.decoder(memory)
+        print(out.dtype)
+        print()
         return out
 
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-transformer = TransformerClassifier(num_encoder_layers=6,
-                                        d_model=32,
-                                        n_head=8,
-                                        input_size=3,
-                                        output_size=3,
-                                        dim_feedforward=128,
-                                        dropout=0.1)
-transformer = transformer.to(DEVICE)
+def train():
+    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-loss_fn = nn.MSELoss()
-optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
-scaler = torch.cuda.amp.GradScaler()
+    transformer = TransformerClassifier(num_encoder_layers=6,
+                                            d_model=32,
+                                            n_head=8,
+                                            input_size=3,
+                                            output_size=3,
+                                            dim_feedforward=128,
+                                            dropout=0.1)
+    transformer = transformer.to(DEVICE)
 
-max_nr_hits = 600
-hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_50tracks.csv", normalize=True)
-dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
-train_loader, valid_loader, test_loader = get_dataloaders(dataset,
-                                                              train_frac=0.7,
-                                                              valid_frac=0.15,
-                                                              test_frac=0.15,
-                                                              batch_size=32)
-print('data loaded')
+    loss_fn = nn.MSELoss()
+    optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
+    scaler = torch.cuda.amp.GradScaler()
 
-# x = torch.Tensor([np.array([[-124.452,-85.585,-1502.0],[-107.377,-75.1006,-1302.0],[-90.5351,-64.3412,-1102.0]]), np.array([[-49.4727,-58.4256,-1298.0],[-41.6409,-49.6406,-1098.0],[-41.6409,-49.6406,-1098.0]])])
-# x = torch.Tensor([np.array([[-1502.2,-201.7,-230.6],[-127.9,-302.3,-219.1],[-172.0,-310.1,-270.8]])]) #, np.array([[-49.4727,-58.4256,-1298.0],[-41.6409,-49.6406,-1098.0],[-41.6409,-49.6406,-1098.0]])])
-# y = torch.Tensor([np.array([0.2])]) #, np.array([0.5])])
+    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_50tracks.csv", normalize=True)
+    dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
+    train_loader, _, _ = get_dataloaders(dataset,
+                                                                train_frac=0.7,
+                                                                valid_frac=0.15,
+                                                                test_frac=0.15,
+                                                                batch_size=32)
+    print('data loaded')
 
-# dummy_dataset = TensorDataset(x, y)
-# dummy_dataloader = DataLoader(dummy_dataset)
+    def train_epoch(model, optim, train_loader, loss_fn, scaler):
+        '''
+        Conducts a single epoch of training: prediction, loss calculation, and loss
+        backpropagation. Returns the average loss over the whole train data.
+        '''
+        # Get the network in train mode
+        torch.set_grad_enabled(True)
+        model.train()
+        losses = 0.
+        for data in train_loader:
+            _, x, y, _ = data
+            optim.zero_grad()
 
-def train_epoch(model, optim, train_loader, loss_fn, scaler):
-    '''
-    Conducts a single epoch of training: prediction, loss calculation, and loss
-    backpropagation. Returns the average loss over the whole train data.
-    '''
-    # Get the network in train mode
-    torch.set_grad_enabled(True)
-    model.train()
-    losses = 0.
-    for data in train_loader:
-        _, x, y, _ = data
-        print(x)
-        optim.zero_grad()
+            # Make prediction
+            x = x.to(DEVICE)
+            y = y.to(DEVICE)
+            with torch.cuda.amp.autocast():
+                padding_mask = (x == -1).all(dim=2)
+                pred = model(x, padding_mask)
+                # Calculate loss and use it to update weights
+                loss = loss_fn(pred, y)
+            
+            scaler.scale(loss).backward()
+            scaler.step(optim)
+            scaler.update()
+            losses += loss.item()
 
-        # Make prediction
-        x = x.to(DEVICE)
-        y = y.to(DEVICE)
-        with torch.cuda.amp.autocast():
-            padding_mask = (x == -1).all(dim=2)
-            pred = model(x, padding_mask)
+        return losses / len(train_loader)
 
-            print(pred)
+    train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn, scaler)
 
-            # Calculate loss and use it to update weights
-            loss = loss_fn(pred, y)
-        
-        scaler.scale(loss).backward()
-        scaler.step(optim)
-        scaler.update()
-        losses += loss.item()
-
-    return losses / len(train_loader)
-
-train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn, scaler)
+train()
