@@ -81,7 +81,8 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
         x = x.to(DEVICE)
         y = y.to(DEVICE)
         with torch.cuda.amp.autocast():
-            pred = model(x)
+            padding_mask = (x == -1).all(dim=2)
+            pred = model(x, padding_mask)
 
             print(pred)
 
