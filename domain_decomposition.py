@@ -99,9 +99,9 @@ def evaluate_split_event(old_data, data):
 
 
 def transform_trackml_data(event_id, overlap_theta=0.1, overlap_phi=0.1, num_bins_theta=5, num_bins_phi=5):
-    hits_data = pd.read_csv(f'../../event0000{event_id}-hits.csv')
-    particles_data = pd.read_csv(f'../../event0000{event_id}-particles.csv')
-    truth_data = pd.read_csv(f'../../event0000{event_id}-truth.csv')
+    hits_data = pd.read_csv(f'../../data/event0000{event_id}-hits.csv')
+    particles_data = pd.read_csv(f'../../data/event0000{event_id}-particles.csv')
+    truth_data = pd.read_csv(f'../../data/event0000{event_id}-truth.csv')
 
     # Merge hit, truth and particle dataframes into a single one with the relevant variables
     hits_data = hits_data[["hit_id", "x", "y", "z", "volume_id"]]

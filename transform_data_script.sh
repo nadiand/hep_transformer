@@ -6,7 +6,7 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --mail-type=BEGIN,END
 
-cd /projects/0/nisei0750/nadia/
+cd /projects/0/nisei0750/nadia/repo/hep_transformer/
 
 module purge
 module load 2022 Python/3.10.4-GCCcore-11.3.0
