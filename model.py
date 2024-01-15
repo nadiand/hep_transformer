@@ -12,18 +12,34 @@ class TransformerClassifier(nn.Module):
     Takes the hits (i.e 2D or 3D coordinates) and outputs the probability of each
     hit belonging to each of the 20 possible tracks (classes).
     '''
-    def __init__(self):
+class TransformerClassifier(nn.Module):
+    '''
+    A transformer network for clustering hits that belong to the same trajectory.
+    Takes the hits (i.e 2D or 3D coordinates) and outputs the probability of each
+    hit belonging to each of the 20 possible tracks (classes).
+    '''
+    def __init__(self, num_encoder_layers, d_model, n_head, input_size, output_size, dim_feedforward, dropout):
         super(TransformerClassifier, self).__init__()
-        encoder_layers = nn.TransformerEncoderLayer(3, 1, 4, 0, batch_first=True)
-        self.encoder = nn.TransformerEncoder(encoder_layers, 1)
+        self.input_layer = nn.Linear(input_size, d_model)
+        encoder_layers = nn.TransformerEncoderLayer(d_model, n_head, dim_feedforward, dropout, batch_first=True)
+        self.encoder = nn.TransformerEncoder(encoder_layers, num_encoder_layers)
+        self.decoder = nn.Linear(d_model, output_size)
 
-    def forward(self, x):
-        memory = self.encoder(src=x)
-        return memory
+    def forward(self, input, padding_mask):
+        x = self.input_layer(input)
+        memory = self.encoder(src=x, src_key_padding_mask=padding_mask)
+        out = self.decoder(memory)
+        return out
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-transformer = TransformerClassifier()
+transformer = TransformerClassifier(num_encoder_layers=6,
+                                        d_model=32,
+                                        n_head=8,
+                                        input_size=3,
+                                        output_size=3,
+                                        dim_feedforward=128,
+                                        dropout=0.1)
 transformer = transformer.to(DEVICE)
 
 loss_fn = nn.MSELoss()
