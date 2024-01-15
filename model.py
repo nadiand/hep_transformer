@@ -57,7 +57,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
     model.train()
     losses = 0.
     for data in train_loader:
-        x, y = data
+        _, x, y, _ = data
         print(x)
         optim.zero_grad()
 
