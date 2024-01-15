@@ -48,6 +48,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
 
         # Move to CUDA
         hits = hits.to(DEVICE)
+        print(hits.dtype)
         track_params = track_params.to(DEVICE)
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
 
@@ -139,7 +140,7 @@ if __name__ == "__main__":
     torch.manual_seed(37)  # for reproducibility
 
     # Load and split dataset into training, validation and test sets, and get dataloaders
-    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_1to1000tracks.csv", normalize=True)
+    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_50tracks.csv", normalize=True)
     dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
     train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,
