@@ -4,7 +4,7 @@ import numpy as np
 from torch.utils.data import DataLoader, TensorDataset
 from dataset import HitsDataset, get_dataloaders, load_linear_3d_data, load_linear_2d_data, load_curved_3d_data
 from trackml_data import load_trackml_data
-
+from encoder_layer import MyEncoderLayer
 
 class TransformerClassifier(nn.Module):
     '''
@@ -21,18 +21,14 @@ class TransformerClassifier(nn.Module):
     def __init__(self, num_encoder_layers, d_model, n_head, input_size, output_size, dim_feedforward, dropout):
         super(TransformerClassifier, self).__init__()
         self.input_layer = nn.Linear(input_size, d_model)
-        encoder_layers = nn.TransformerEncoderLayer(d_model, n_head, dim_feedforward, dropout, batch_first=True)
+        encoder_layers = MyEncoderLayer(d_model, n_head, dim_feedforward, dropout, batch_first=True)
         self.encoder = nn.TransformerEncoder(encoder_layers, num_encoder_layers)
         self.decoder = nn.Linear(d_model, output_size)
 
     def forward(self, input, padding_mask):
         x = self.input_layer(input)
-        print(x.dtype)
         memory = self.encoder(src=x, src_key_padding_mask=padding_mask)
-        print(memory.dtype)
         out = self.decoder(memory)
-        print(out.dtype)
-        print()
         return out
 
 
@@ -91,5 +87,6 @@ def train():
         return losses / len(train_loader)
 
     train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn, scaler)
+    print(train_loss)
 
 train()
