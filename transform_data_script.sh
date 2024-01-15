@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=data_creation          # Job name
 #SBATCH --ntasks=1                    # Run on a single GPU
-#SBATCH --time=48:00:00               # Time limit hrs:min:sec
+#SBATCH --time=02:00:00               # Time limit hrs:min:sec
 #SBATCH --partition=gpu
 #SBATCH --gpus-per-node=1
 #SBATCH --mail-type=BEGIN,END
@@ -15,6 +15,6 @@ pip install torch==1.13.1
 pip install scikit-learn
 pip install pandas
 
-for i in {21000..30000} ; do
-    python trackml_data.py -e ${i} -l 50 -u 100 -s 1
+for i in {21000..21010} ; do
+    python domain_decomposition.py -e ${i}
 done
