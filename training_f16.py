@@ -2,31 +2,19 @@ import torch
 import torch.nn as nn
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
-from hdbscan import HDBSCAN
-import pandas as pd
-from torch.utils.data import DataLoader
 
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders
 from scoring import calc_score_trackml
 from trackml_data import load_trackml_data
-from sklearn.metrics import pairwise_distances
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def clustering(pred_params):
-    # def angdiff(point1, point2):
-    #     return np.abs((((point1[1]-point2[1]) + np.pi) % (2*np.pi)) - np.pi)
-    
-    # def sim_affinity(X):
-    #     return pairwise_distances(X, metric=angdiff)
-
-    # clustering_algorithm = HDBSCAN()
     clustering_algorithm = AgglomerativeClustering(n_clusters=None, distance_threshold=0.1) #, affinity='precomputed', linkage='single')
     cluster_labels = []
     for _, event_prediction in enumerate(pred_params):
         regressed_params = np.array(event_prediction.tolist())
-        # X = sim_affinity(regressed_params)
         event_cluster_labels = clustering_algorithm.fit_predict(regressed_params)
         cluster_labels.append(event_cluster_labels)
 
@@ -48,15 +36,12 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
 
         # Move to CUDA
         hits = hits.to(DEVICE)
-        print(hits.dtype)
         track_params = track_params.to(DEVICE)
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
 
         # Make prediction
         with torch.cuda.amp.autocast():
             pred = model(hits, padding_mask)
-            print(pred)
-            print(pred.dtype)
             loss = loss_fn(pred, track_params)
         
         # Update loss and scaler
@@ -87,8 +72,6 @@ def evaluate(model, validation_loader, loss_fn):
             
             with torch.cuda.amp.autocast():
                 pred = model(hits, padding_mask)
-                print(pred)
-                print(pred.dtype)
                 loss = loss_fn(pred, track_params)
 
             losses += loss.item()
