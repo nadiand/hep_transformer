@@ -49,13 +49,13 @@ def train():
     optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
     scaler = torch.cuda.amp.GradScaler()
 
-    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_50tracks.csv", normalize=True)
+    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_700tracks.csv", normalize=True)
     dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
     train_loader, _, _ = get_dataloaders(dataset,
                                                                 train_frac=0.7,
                                                                 valid_frac=0.15,
                                                                 test_frac=0.15,
-                                                                batch_size=32)
+                                                                batch_size=1)
     print('data loaded')
 
     def train_epoch(model, optim, train_loader, loss_fn, scaler):
