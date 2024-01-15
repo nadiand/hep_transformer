@@ -31,7 +31,7 @@ optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
 scaler = torch.cuda.amp.GradScaler()
 
 max_nr_hits = 600
-hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_50tracks.csv")
+hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_50tracks.csv", normalize=True)
 dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
 train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,
@@ -41,8 +41,8 @@ train_loader, valid_loader, test_loader = get_dataloaders(dataset,
 print('data loaded')
 
 # x = torch.Tensor([np.array([[-124.452,-85.585,-1502.0],[-107.377,-75.1006,-1302.0],[-90.5351,-64.3412,-1102.0]]), np.array([[-49.4727,-58.4256,-1298.0],[-41.6409,-49.6406,-1098.0],[-41.6409,-49.6406,-1098.0]])])
-x = torch.Tensor([np.array([[-1502.2,-201.7,-230.6],[-127.9,-302.3,-219.1],[-172.0,-310.1,-270.8]])]) #, np.array([[-49.4727,-58.4256,-1298.0],[-41.6409,-49.6406,-1098.0],[-41.6409,-49.6406,-1098.0]])])
-y = torch.Tensor([np.array([0.2])]) #, np.array([0.5])])
+# x = torch.Tensor([np.array([[-1502.2,-201.7,-230.6],[-127.9,-302.3,-219.1],[-172.0,-310.1,-270.8]])]) #, np.array([[-49.4727,-58.4256,-1298.0],[-41.6409,-49.6406,-1098.0],[-41.6409,-49.6406,-1098.0]])])
+# y = torch.Tensor([np.array([0.2])]) #, np.array([0.5])])
 
 dummy_dataset = TensorDataset(x, y)
 dummy_dataloader = DataLoader(dummy_dataset)
@@ -79,4 +79,4 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
 
     return losses / len(train_loader)
 
-train_loss = train_epoch(transformer, optimizer, dummy_dataloader, loss_fn, scaler)
+train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn, scaler)
