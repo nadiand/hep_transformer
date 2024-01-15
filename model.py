@@ -12,12 +12,6 @@ class TransformerClassifier(nn.Module):
     Takes the hits (i.e 2D or 3D coordinates) and outputs the probability of each
     hit belonging to each of the 20 possible tracks (classes).
     '''
-class TransformerClassifier(nn.Module):
-    '''
-    A transformer network for clustering hits that belong to the same trajectory.
-    Takes the hits (i.e 2D or 3D coordinates) and outputs the probability of each
-    hit belonging to each of the 20 possible tracks (classes).
-    '''
     def __init__(self, num_encoder_layers, d_model, n_head, input_size, output_size, dim_feedforward, dropout):
         super(TransformerClassifier, self).__init__()
         self.input_layer = nn.Linear(input_size, d_model)
