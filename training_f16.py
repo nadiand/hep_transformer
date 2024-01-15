@@ -54,6 +54,8 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
         # Make prediction
         with torch.cuda.amp.autocast():
             pred = model(hits, padding_mask)
+            print(pred)
+            print(pred.dtype)
             loss = loss_fn(pred, track_params)
         
         # Update loss and scaler
@@ -84,6 +86,8 @@ def evaluate(model, validation_loader, loss_fn):
             
             with torch.cuda.amp.autocast():
                 pred = model(hits, padding_mask)
+                print(pred)
+                print(pred.dtype)
                 loss = loss_fn(pred, track_params)
 
             losses += loss.item()
