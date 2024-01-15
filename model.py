@@ -34,6 +34,7 @@ class TransformerClassifier(nn.Module):
 
 def train():
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    torch.cuda.memory._record_memory_history(max_entries=100000)
 
     transformer = TransformerClassifier(num_encoder_layers=6,
                                             d_model=32,
@@ -88,5 +89,11 @@ def train():
 
     train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn, scaler)
     print(train_loss)
+    try:
+        torch.cuda.memory._dump_snapshot("memory_usage.pickle")
+    except Exception as e:
+        print(f"Failed to capture memory snapshot {e}")
+
+    torch.cuda.memory._record_memory_history(enabled=None)
 
 train()
