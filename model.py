@@ -44,8 +44,8 @@ print('data loaded')
 # x = torch.Tensor([np.array([[-1502.2,-201.7,-230.6],[-127.9,-302.3,-219.1],[-172.0,-310.1,-270.8]])]) #, np.array([[-49.4727,-58.4256,-1298.0],[-41.6409,-49.6406,-1098.0],[-41.6409,-49.6406,-1098.0]])])
 # y = torch.Tensor([np.array([0.2])]) #, np.array([0.5])])
 
-dummy_dataset = TensorDataset(x, y)
-dummy_dataloader = DataLoader(dummy_dataset)
+# dummy_dataset = TensorDataset(x, y)
+# dummy_dataloader = DataLoader(dummy_dataset)
 
 def train_epoch(model, optim, train_loader, loss_fn, scaler):
     '''
