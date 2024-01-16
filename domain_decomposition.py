@@ -243,12 +243,13 @@ if __name__ == "__main__":
         # run the wrapper in parallel
         # results = Parallel(n_jobs=-1)(delayed(evaluate_split_event_wrapper)(overlaps[i], num_bins[j]) for j in range(len(num_bins)))
         for j in range(len(num_bins)):
-            for event_id in ['21000', '21001', '21002', '21003', '21004', '21005']:
+            for event_id in ['21000', '21001']: #, '21002', '21003', '21004', '21005']:
                 data_subdivided, data, theta_bins, phi_bins = transform_trackml_data(event_id=event_id, overlap_theta=overlaps[i], overlap_phi=overlaps[i], num_bins_theta=num_bins[j], num_bins_phi=num_bins[j], theta_bins=theta_bins, phi_bins=phi_bins)
                 results = evaluate_split_event(data, data_subdivided)
-                print(f"results for overlap {i}, num_buins {j} and event_id {event_id}:")
-                print(results)
-                print()
+                with open('output.txt', 'a') as f:
+                    f.write(f"results for overlap {i}, num_buins {j} and event_id {event_id}:")
+                    f.write(results)
+                    f.write()
             # store results in matrix
             # efficiency_matrix[i,j] = results[0]
             # efficiency_std_matrix[i,j] = results[1]
