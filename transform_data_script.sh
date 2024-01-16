@@ -15,8 +15,8 @@ pip install torch==1.13.1
 pip install scikit-learn
 pip install pandas
 
-# for i in {21000..21010} ; do
-#     python domain_decomposition.py -e ${i}
-# done
+for i in {21001..21005} ; do
+    python domain_decomposition.py -e ${i}
+done
 
-python domain_decomposition.py
+# python domain_decomposition.py
