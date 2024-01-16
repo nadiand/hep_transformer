@@ -58,6 +58,34 @@ def split_event(data, event_id, overlap_theta=0.1, overlap_phi=0.1, num_bins_the
             data_class["event_class"] = i*num_bins_phi + j
             data_subdivided = data_subdivided.append(data_class)
 
+    return data_subdivided, data, theta_bins, phi_bins
+
+def split_event_constbins(data, event_id, overlap_theta=0.1, overlap_phi=0.1, num_bins_theta=5, num_bins_phi=5, theta_bins=None, phi_bins=None):
+
+    # Calculate theta and phi of each hit
+    p = np.sqrt(data['x']**2 + data['y']**2 + data['z']**2)
+    data['theta'] = np.arccos(data['z']/p)
+    data['phi'] = np.arctan2(data['y'], data['x'])
+
+    # store theta and phi max and min values before normalization
+    theta_max = data['theta'].max()
+    theta_min = data['theta'].min()
+    phi_max = data['phi'].max()
+    phi_min = data['phi'].min()
+
+    # normalize theta and phi to be between 0 and 1
+    data['theta'] = (data['theta'] - data['theta'].min())/(data['theta'].max() - data['theta'].min())
+    data['phi'] = (data['phi'] - data['phi'].min())/(data['phi'].max() - data['phi'].min())
+
+    data_subdivided = pd.DataFrame(columns=data.columns)
+    for i in range(num_bins_phi):
+        for j in range(num_bins_theta):
+            indices = ((data["theta"] > theta_bins[j][0]) & (data["theta"] < theta_bins[j][1]) 
+                       & (data["phi"] > phi_bins[i][0]) & (data["phi"] < phi_bins[i][1]))
+            data_class = data[indices]
+            data_class["event_class"] = i*num_bins_phi + j
+            data_subdivided = data_subdivided.append(data_class)
+
     return data_subdivided, data
 
 def evaluate_split_event(old_data, data):
@@ -98,7 +126,7 @@ def evaluate_split_event(old_data, data):
     print("Efficiency standard dev:", portions_arr.std())
 
 
-def transform_trackml_data(event_id, overlap_theta=0.1, overlap_phi=0.1, num_bins_theta=5, num_bins_phi=5):
+def transform_trackml_data(event_id, overlap_theta=0.1, overlap_phi=0.1, num_bins_theta=5, num_bins_phi=5, theta_bins=None, phi_bins=None):
     hits_data = pd.read_csv(f'../../data/event0000{event_id}-hits.csv')
     particles_data = pd.read_csv(f'../../data/event0000{event_id}-particles.csv')
     truth_data = pd.read_csv(f'../../data/event0000{event_id}-truth.csv')
@@ -114,7 +142,10 @@ def transform_trackml_data(event_id, overlap_theta=0.1, overlap_phi=0.1, num_bin
     final_data = merged_data[["x", "y", "z", "volume_id", "vx", "vy", "vz", "px", "py", "pz", "q", "particle_id", "weight_x"]]
     final_data.loc[:, 'event_id'] = np.repeat(event_id, len(final_data))
     # Split up the event into multiple subevents, using domain decomposition
-    data_subdivided, data = split_event(final_data, int(event_id), overlap_theta=overlap_theta, overlap_phi=overlap_phi, num_bins_theta=num_bins_theta, num_bins_phi=num_bins_phi)
+    if event_id == '21000':
+        data_subdivided, data, theta_bins, phi_bins = split_event(final_data, int(event_id), overlap_theta=overlap_theta, overlap_phi=overlap_phi, num_bins_theta=num_bins_theta, num_bins_phi=num_bins_phi)
+    else:
+        data_subdivided, data = split_event_constbins(final_data, int(event_id), overlap_theta=overlap_theta, overlap_phi=overlap_phi, num_bins_theta=num_bins_theta, num_bins_phi=num_bins_phi, theta_bins=theta_bins, phi_bins=phi_bins)
     # ready_data = split_data.sort_values('event_class')
 
     # Write the sub-events to a file
@@ -126,7 +157,7 @@ def transform_trackml_data(event_id, overlap_theta=0.1, overlap_phi=0.1, num_bin
     # else:
     #     ready_data.to_csv('trackml_validation_data_subdivided.csv', mode='a', index=False, header=False)
 
-    return data_subdivided, data
+    return data_subdivided, data, theta_bins, phi_bins
 
 
 # def load_trackml_data(data, normalize=False):
@@ -181,105 +212,113 @@ def transform_trackml_data(event_id, overlap_theta=0.1, overlap_phi=0.1, num_bin
 #     return hits_data, track_params_data, hit_classes_data
 
 if __name__ == "__main__":
-    argparser = argparse.ArgumentParser()
-    argparser.add_argument('-e', '--event_id')
-    args = argparser.parse_args()
+    # argparser = argparse.ArgumentParser()
+    # argparser.add_argument('-e', '--event_id')
+    # args = argparser.parse_args()
     # transform_trackml_data(args.event_id)
     
     # data_subdivided, data = transform_trackml_data(event_id='21100')
     # # Evaluate the split by calculating its "efficiency" score
     # average_efficiency, stdev_efficiency, average_size = evaluate_split_event(data, data_subdivided)
 
+
     # evaluate the efficiency score as a function of the overlap and the number of bins, and store in 2d matrix
     overlaps = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35]
     num_bins = [2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-    efficiency_matrix = np.zeros((len(overlaps), len(num_bins)))
-    efficiency_std_matrix = np.zeros((len(overlaps), len(num_bins)))
-    average_size_matrix = np.zeros((len(overlaps), len(num_bins)))
+    # efficiency_matrix = np.zeros((len(overlaps), len(num_bins)))
+    # efficiency_std_matrix = np.zeros((len(overlaps), len(num_bins)))
+    # average_size_matrix = np.zeros((len(overlaps), len(num_bins)))
 
-    def evaluate_split_event_wrapper(overlap, num_bins):
-        try:
-            data_subdivided, data = transform_trackml_data(event_id=args.event_id, overlap_theta=overlap, overlap_phi=overlap, num_bins_theta=num_bins, num_bins_phi=num_bins)
-            return evaluate_split_event(data, data_subdivided)
-        except ValueError:
-            return 0, 0, 0
+    # def evaluate_split_event_wrapper(overlap, num_bins):
+    #     try:
+    #         data_subdivided, data = transform_trackml_data(event_id=event_id, overlap_theta=overlap, overlap_phi=overlap, num_bins_theta=num_bins, num_bins_phi=num_bins)
+    #         return evaluate_split_event(data, data_subdivided)
+    #     except ValueError:
+    #         return 0, 0, 0
 
+    theta_bins = []
+    phi_bins = []
     for i in range(len(overlaps)):
         # run the wrapper in parallel
-        results = Parallel(n_jobs=-1)(delayed(evaluate_split_event_wrapper)(overlaps[i], num_bins[j]) for j in range(len(num_bins)))
-
-        # store results in matrix
+        # results = Parallel(n_jobs=-1)(delayed(evaluate_split_event_wrapper)(overlaps[i], num_bins[j]) for j in range(len(num_bins)))
         for j in range(len(num_bins)):
-            efficiency_matrix[i,j] = results[j][0]
-            efficiency_std_matrix[i,j] = results[j][1]
-            average_size_matrix[i,j] = results[j][2]
+            for event_id in ['21000', '21001', '21002', '21003', '21004', '21005']:
+                data_subdivided, data, theta_bins, phi_bins = transform_trackml_data(event_id=event_id, overlap_theta=overlaps[i], overlap_phi=overlaps[i], num_bins_theta=num_bins[j], num_bins_phi=num_bins[j], theta_bins=theta_bins, phi_bins=phi_bins)
+                results = evaluate_split_event(data, data_subdivided)
+                print(f"results for overlap {i}, num_buins {j} and event_id {event_id}:")
+                print(results)
+                print()
+            # store results in matrix
+            # efficiency_matrix[i,j] = results[0]
+            # efficiency_std_matrix[i,j] = results[1]
+            # average_size_matrix[i,j] = results[2]
 
 
         # for j in range(len(num_bins)):
         #     data_subdivided, data = transform_trackml_data(event_id='21100', overlap_theta=overlaps[i], overlap_phi=overlaps[i], num_bins_theta=num_bins[j], num_bins_phi=num_bins[j])
         #     efficiency_matrix[i,j], efficiency_std_matrix[i,j], average_size_matrix[i,j] = evaluate_split_event(data, data_subdivided)
 
-    efficiency_matrix = np.ma.masked_where(efficiency_matrix < 0.05, efficiency_matrix)
-    efficiency_std_matrix = np.ma.masked_where(efficiency_matrix < 0.05, efficiency_std_matrix)
-    average_size_matrix = np.ma.masked_where(efficiency_matrix < 0.05, average_size_matrix)
+    # efficiency_matrix = np.ma.masked_where(efficiency_matrix < 0.05, efficiency_matrix)
+    # efficiency_std_matrix = np.ma.masked_where(efficiency_matrix < 0.05, efficiency_std_matrix)
+    # average_size_matrix = np.ma.masked_where(efficiency_matrix < 0.05, average_size_matrix)
 
-    cmap = matplotlib.cm.get_cmap("OrRd").copy()
+    # cmap = matplotlib.cm.get_cmap("OrRd").copy()
 
-    cmap.set_bad(color='black')
+    # cmap.set_bad(color='black')
 
-    # plot efficiency matrix
-    fig, ax = plt.subplots()
-    im = ax.imshow(efficiency_matrix, cmap=cmap)
+    # # plot efficiency matrix
+    # fig, ax = plt.subplots()
+    # im = ax.imshow(efficiency_matrix, cmap=cmap)
 
-    # We want to show all ticks...
-    ax.set_xticks(np.arange(len(num_bins)))
-    ax.set_yticks(np.arange(len(overlaps)))
-    # ... and label them with the respective list entries
-    ax.set_xticklabels(num_bins)
-    ax.set_yticklabels(overlaps)
+    # # We want to show all ticks...
+    # ax.set_xticks(np.arange(len(num_bins)))
+    # ax.set_yticks(np.arange(len(overlaps)))
+    # # ... and label them with the respective list entries
+    # ax.set_xticklabels(num_bins)
+    # ax.set_yticklabels(overlaps)
 
-    # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-            rotation_mode="anchor")
+    # # Rotate the tick labels and set their alignment.
+    # plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+    #         rotation_mode="anchor")
     
-    # Loop over data dimensions and create text annotations.
-    for i in range(len(overlaps)):
-        for j in range(len(num_bins)):
-            text = ax.text(j, i, np.round(efficiency_matrix[i, j], 4),
-                        ha="center", va="center", color="w")
+    # # Loop over data dimensions and create text annotations.
+    # for i in range(len(overlaps)):
+    #     for j in range(len(num_bins)):
+    #         text = ax.text(j, i, np.round(efficiency_matrix[i, j], 4),
+    #                     ha="center", va="center", color="w")
             
-    ax.set_title("Efficiency score as a function of overlap and number of bins")
-    fig.tight_layout()
-    # plt.show()
+    # ax.set_title("Efficiency score as a function of overlap and number of bins")
+    # fig.tight_layout()
+    # # plt.show()
 
-    # save image to file
-    fig.savefig(f'efficiency_score_{args.event_id}.png')
+    # # save image to file
+    # fig.savefig(f'efficiency_score_{event_id}.png')
 
-    # plot number of values in each bin
-    fig, ax = plt.subplots()
-    im = ax.imshow(average_size_matrix, cmap=cmap)
+    # # plot number of values in each bin
+    # fig, ax = plt.subplots()
+    # im = ax.imshow(average_size_matrix, cmap=cmap)
 
-    # We want to show all ticks...
-    ax.set_xticks(np.arange(len(num_bins)))
-    ax.set_yticks(np.arange(len(overlaps)))
-    # ... and label them with the respective list entries
-    ax.set_xticklabels(num_bins)
-    ax.set_yticklabels(overlaps)
+    # # We want to show all ticks...
+    # ax.set_xticks(np.arange(len(num_bins)))
+    # ax.set_yticks(np.arange(len(overlaps)))
+    # # ... and label them with the respective list entries
+    # ax.set_xticklabels(num_bins)
+    # ax.set_yticklabels(overlaps)
 
-    # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-            rotation_mode="anchor")
+    # # Rotate the tick labels and set their alignment.
+    # plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+    #         rotation_mode="anchor")
     
-    # Loop over data dimensions and create text annotations.
-    for i in range(len(overlaps)):
-        for j in range(len(num_bins)):
-            text = ax.text(j, i, np.round(average_size_matrix[i, j], 0), fontsize="small",
-                        ha="center", va="center", color="w")
+    # # Loop over data dimensions and create text annotations.
+    # for i in range(len(overlaps)):
+    #     for j in range(len(num_bins)):
+    #         text = ax.text(j, i, np.round(average_size_matrix[i, j], 0), fontsize="small",
+    #                     ha="center", va="center", color="w")
     
-    ax.set_title(f"Average number of hits in each bin for event {args.event_id}")
-    fig.tight_layout()
-    # plt.show()
+    # ax.set_title(f"Average number of hits in each bin for event {event_id}")
+    # fig.tight_layout()
+    # # plt.show()
 
-    # save image to file
-    fig.savefig(f'average_number_hits_{args.event_id}.png')
+    # # save image to file
+    # fig.savefig(f'average_number_hits_{event_id}.png')
