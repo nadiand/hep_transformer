@@ -14,8 +14,7 @@ pd.options.mode.chained_assignment = None  # default='warn'
 PAD_TOKEN = -1
 
 
-def split_event(data, event_id, overlap_theta=0.1, overlap_phi=0.1, num_bins_theta=5, num_bins_phi=5):
-
+def split_event(data, overlap_theta=0.1, overlap_phi=0.1, num_bins_theta=5, num_bins_phi=5):
     # Calculate theta and phi of each hit
     p = np.sqrt(data['x']**2 + data['y']**2 + data['z']**2)
     data['theta'] = np.arccos(data['z']/p)
@@ -46,8 +45,6 @@ def split_event(data, event_id, overlap_theta=0.1, overlap_phi=0.1, num_bins_the
         phi_bins.append((data['phi'].quantile(i/num_bins_phi - overlap_phi/2), data['phi'].quantile((i+1)/num_bins_phi + overlap_phi/2)))
     phi_bins.append((data['phi'].quantile((num_bins_phi-1)/num_bins_phi - overlap_phi), 1))
 
-    print('theta bins\n', theta_bins)
-    print('phi bins\n', phi_bins)
 
     data_subdivided = pd.DataFrame(columns=data.columns)
     for i in range(num_bins_phi):
@@ -60,7 +57,7 @@ def split_event(data, event_id, overlap_theta=0.1, overlap_phi=0.1, num_bins_the
 
     return data_subdivided, data, theta_bins, phi_bins
 
-def split_event_constbins(data, num_bins_theta=5, num_bins_phi=5, theta_bins=None, phi_bins=None):
+def split_event_fixedbins(data, num_bins_theta=5, num_bins_phi=5, theta_bins=None, phi_bins=None):
 
     # Calculate theta and phi of each hit
     p = np.sqrt(data['x']**2 + data['y']**2 + data['z']**2)
@@ -143,9 +140,9 @@ def transform_trackml_data(event_id, overlap_theta=0.1, overlap_phi=0.1, num_bin
     final_data.loc[:, 'event_id'] = np.repeat(event_id, len(final_data))
     # Split up the event into multiple subevents, using domain decomposition
     if event_id == '21000':
-        data_subdivided, data, theta_bins, phi_bins = split_event(final_data, int(event_id), overlap_theta=overlap_theta, overlap_phi=overlap_phi, num_bins_theta=num_bins_theta, num_bins_phi=num_bins_phi)
+        data_subdivided, data, theta_bins, phi_bins = split_event(final_data, overlap_theta=overlap_theta, overlap_phi=overlap_phi, num_bins_theta=num_bins_theta, num_bins_phi=num_bins_phi)
     else:
-        data_subdivided, data = split_event_constbins(final_data, num_bins_theta=num_bins_theta, num_bins_phi=num_bins_phi, theta_bins=theta_bins, phi_bins=phi_bins)
+        data_subdivided, data = split_event_fixedbins(final_data, num_bins_theta=num_bins_theta, num_bins_phi=num_bins_phi, theta_bins=theta_bins, phi_bins=phi_bins)
     # ready_data = split_data.sort_values('event_class')
 
     # Write the sub-events to a file
@@ -215,12 +212,6 @@ if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
     argparser.add_argument('-e', '--event_id')
     args = argparser.parse_args()
-    # transform_trackml_data(args.event_id)
-    
-    # data_subdivided, data = transform_trackml_data(event_id='21100')
-    # # Evaluate the split by calculating its "efficiency" score
-    # average_efficiency, stdev_efficiency, average_size = evaluate_split_event(data, data_subdivided)
-
 
     # evaluate the efficiency score as a function of the overlap and the number of bins, and store in 2d matrix
     overlaps = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35]
@@ -245,7 +236,7 @@ if __name__ == "__main__":
         # results = Parallel(n_jobs=-1)(delayed(evaluate_split_event_wrapper)(overlaps[i], num_bins[j]) for j in range(len(num_bins)))
         for j in range(len(num_bins)):
 
-            for event_id in ['21000', args.event_id]: #, '21002', '21003', '21004', '21005']:
+            for event_id in ['21000', args.event_id]:
                 try:
                     data_subdivided, data, theta_bins, phi_bins = transform_trackml_data(event_id=event_id, overlap_theta=overlaps[i], overlap_phi=overlaps[i], num_bins_theta=num_bins[j], num_bins_phi=num_bins[j], theta_bins=theta_bins, phi_bins=phi_bins)
                     results = evaluate_split_event(data, data_subdivided)
@@ -255,11 +246,6 @@ if __name__ == "__main__":
 
                 if breaking:
                     break
-
-                with open('output.txt', 'a') as f:
-                    print(f"results for overlap {i}, num_buins {j} and event_id {event_id}:", file=f)
-                    print(results, file=f)
-                    print(file=f)
                 
                 if event_id != '21000':
                     # store results in matrix
