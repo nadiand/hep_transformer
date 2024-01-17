@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=data_creation          # Job name
+#SBATCH --job-name=domain_decomposition          # Job name
 #SBATCH --ntasks=1                    # Run on a single GPU
-#SBATCH --time=00:15:00               # Time limit hrs:min:sec
+#SBATCH --time=24:00:00               # Time limit hrs:min:sec
 #SBATCH --partition=gpu
 #SBATCH --gpus-per-node=1
 #SBATCH --mail-type=BEGIN,END
@@ -15,8 +15,6 @@ pip install torch==1.13.1
 pip install scikit-learn
 pip install pandas
 
-# for i in {21001..21005} ; do
-#     python domain_decomposition.py -e ${i}
-# done
-
-python domain_decomposition.py -e '21000'
+for i in {21000..21010} ; do
+    python domain_decomposition.py -e ${i}
+done
