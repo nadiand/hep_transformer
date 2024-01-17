@@ -60,7 +60,7 @@ def split_event(data, event_id, overlap_theta=0.1, overlap_phi=0.1, num_bins_the
 
     return data_subdivided, data, theta_bins, phi_bins
 
-def split_event_constbins(data, event_id, overlap_theta=0.1, overlap_phi=0.1, num_bins_theta=5, num_bins_phi=5, theta_bins=None, phi_bins=None):
+def split_event_constbins(data, num_bins_theta=5, num_bins_phi=5, theta_bins=None, phi_bins=None):
 
     # Calculate theta and phi of each hit
     p = np.sqrt(data['x']**2 + data['y']**2 + data['z']**2)
@@ -145,7 +145,7 @@ def transform_trackml_data(event_id, overlap_theta=0.1, overlap_phi=0.1, num_bin
     if event_id == '21000':
         data_subdivided, data, theta_bins, phi_bins = split_event(final_data, int(event_id), overlap_theta=overlap_theta, overlap_phi=overlap_phi, num_bins_theta=num_bins_theta, num_bins_phi=num_bins_phi)
     else:
-        data_subdivided, data = split_event_constbins(final_data, int(event_id), overlap_theta=overlap_theta, overlap_phi=overlap_phi, num_bins_theta=num_bins_theta, num_bins_phi=num_bins_phi, theta_bins=theta_bins, phi_bins=phi_bins)
+        data_subdivided, data = split_event_constbins(final_data, num_bins_theta=num_bins_theta, num_bins_phi=num_bins_phi, theta_bins=theta_bins, phi_bins=phi_bins)
     # ready_data = split_data.sort_values('event_class')
 
     # Write the sub-events to a file
@@ -239,14 +239,23 @@ if __name__ == "__main__":
 
     theta_bins = []
     phi_bins = []
+    breaking = False
     for i in range(len(overlaps)):
         # run the wrapper in parallel
         # results = Parallel(n_jobs=-1)(delayed(evaluate_split_event_wrapper)(overlaps[i], num_bins[j]) for j in range(len(num_bins)))
         for j in range(len(num_bins)):
 
             for event_id in ['21000', args.event_id]: #, '21002', '21003', '21004', '21005']:
-                data_subdivided, data, theta_bins, phi_bins = transform_trackml_data(event_id=event_id, overlap_theta=overlaps[i], overlap_phi=overlaps[i], num_bins_theta=num_bins[j], num_bins_phi=num_bins[j], theta_bins=theta_bins, phi_bins=phi_bins)
-                results = evaluate_split_event(data, data_subdivided)
+                try:
+                    data_subdivided, data, theta_bins, phi_bins = transform_trackml_data(event_id=event_id, overlap_theta=overlaps[i], overlap_phi=overlaps[i], num_bins_theta=num_bins[j], num_bins_phi=num_bins[j], theta_bins=theta_bins, phi_bins=phi_bins)
+                    results = evaluate_split_event(data, data_subdivided)
+                    breaking = False
+                except ValueError:
+                    breaking = True
+
+                if breaking:
+                    break
+
                 with open('output.txt', 'a') as f:
                     print(f"results for overlap {i}, num_buins {j} and event_id {event_id}:", file=f)
                     print(results, file=f)
