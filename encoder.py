@@ -1,10 +1,11 @@
 import copy
-from typing import Optional, Any, Union, Callable
+from typing import Optional, Union, Callable
 import torch
 from torch.nn import Module, Linear, LayerNorm, Dropout, MultiheadAttention, ModuleList
 from torch import Tensor
 import torch.nn.functional as F
 
+from flash_attn.modules.mha import MHA
 
 class TransformerEncoder(Module):
     r"""TransformerEncoder is a stack of N encoder layers. Users can build the
@@ -228,8 +229,7 @@ class TransformerEncoderLayer(Module):
                  device=None, dtype=None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=batch_first,
-                                            **factory_kwargs)
+        self.self_attn = MHA(d_model, nhead, dropout=dropout) #, batch_first=batch_first, **factory_kwargs)
         # Implementation of Feedforward model
         self.linear1 = Linear(d_model, dim_feedforward, **factory_kwargs)
         self.dropout = Dropout(dropout)
