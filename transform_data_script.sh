@@ -19,4 +19,4 @@ pip install pandas
 #     python domain_decomposition.py -e ${i}
 # done
 
-python domain_decomposition.py -e '21001'
+python domain_decomposition.py -e '21000'

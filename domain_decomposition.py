@@ -125,9 +125,9 @@ def evaluate_split_event(old_data, data):
 
 
 def transform_trackml_data(event_id, overlap_theta=0.1, overlap_phi=0.1, num_bins_theta=5, num_bins_phi=5, theta_bins=None, phi_bins=None):
-    hits_data = pd.read_csv(f'../../data/event0000{event_id}-hits.csv')
-    particles_data = pd.read_csv(f'../../data/event0000{event_id}-particles.csv')
-    truth_data = pd.read_csv(f'../../data/event0000{event_id}-truth.csv')
+    hits_data = pd.read_csv(f'../../data/event0000{event_id}-hits.csv').head(110000*10)
+    particles_data = pd.read_csv(f'../../data/event0000{event_id}-particles.csv').head(110000*10)
+    truth_data = pd.read_csv(f'../../data/event0000{event_id}-truth.csv').head(110000*10)
 
     # Merge hit, truth and particle dataframes into a single one with the relevant variables
     hits_data = hits_data[["hit_id", "x", "y", "z", "volume_id"]]
@@ -213,11 +213,12 @@ def generate_bins(num_bins, overlaps, event_id):
     bins_dict = {}
     breaking = False
     for i in range(len(overlaps)):
+        bins_per_overlap = []
         for j in range(len(num_bins)):
             try:
                 data_subdivided, data, theta_bins, phi_bins = transform_trackml_data(event_id=event_id, overlap_theta=overlaps[i], overlap_phi=overlaps[i], num_bins_theta=num_bins[j], num_bins_phi=num_bins[j], theta_bins=None, phi_bins=None)
                 results = evaluate_split_event(data, data_subdivided)
-                bins_dict[(i,j)] = (theta_bins, phi_bins)
+                bins_per_overlap.append((theta_bins, phi_bins))
                 breaking = False
             except ValueError:
                 breaking = True
@@ -229,6 +230,7 @@ def generate_bins(num_bins, overlaps, event_id):
             efficiency_matrix[i,j] = results[0]
             efficiency_std_matrix[i,j] = results[1]
             average_size_matrix[i,j] = results[2]
+        bins_dict[i] = bins_per_overlap
 
     with open('bins.txt', 'a') as file:
         file.write(json.dumps(bins_dict))
@@ -333,8 +335,10 @@ if __name__ == "__main__":
     for i in range(len(overlaps)):
         # run the wrapper in parallel
         # results = Parallel(n_jobs=-1)(delayed(evaluate_split_event_wrapper)(overlaps[i], num_bins[j]) for j in range(len(num_bins)))
+
+        bins = bins_dict[i]
         for j in range(len(num_bins)):
-            theta_bins, phi_bins = bins_dict[(i,j)]
+            theta_bins, phi_bins = bins[j]
             data_subdivided, data = transform_trackml_data(event_id=args.event_id, overlap_theta=overlaps[i], overlap_phi=overlaps[i], num_bins_theta=num_bins[j], num_bins_phi=num_bins[j], theta_bins=theta_bins, phi_bins=phi_bins)
             results = evaluate_split_event(data, data_subdivided)
             
