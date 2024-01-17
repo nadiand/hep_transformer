@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=data_creation          # Job name
 #SBATCH --ntasks=1                    # Run on a single GPU
-#SBATCH --time=24:00:00               # Time limit hrs:min:sec
+#SBATCH --time=00:15:00               # Time limit hrs:min:sec
 #SBATCH --partition=gpu
 #SBATCH --gpus-per-node=1
 #SBATCH --mail-type=BEGIN,END

@@ -336,10 +336,10 @@ if __name__ == "__main__":
         # run the wrapper in parallel
         # results = Parallel(n_jobs=-1)(delayed(evaluate_split_event_wrapper)(overlaps[i], num_bins[j]) for j in range(len(num_bins)))
 
-        bins = bins_dict[i]
+        bins = bins_dict[str(i)]
         for j in range(len(num_bins)):
             theta_bins, phi_bins = bins[j]
-            data_subdivided, data = transform_trackml_data(event_id=args.event_id, overlap_theta=overlaps[i], overlap_phi=overlaps[i], num_bins_theta=num_bins[j], num_bins_phi=num_bins[j], theta_bins=theta_bins, phi_bins=phi_bins)
+            data_subdivided, data, _, _ = transform_trackml_data(event_id=args.event_id, overlap_theta=overlaps[i], overlap_phi=overlaps[i], num_bins_theta=num_bins[j], num_bins_phi=num_bins[j], theta_bins=theta_bins, phi_bins=phi_bins)
             results = evaluate_split_event(data, data_subdivided)
             
             efficiency_matrix[i,j] = results[0]
