@@ -209,36 +209,13 @@ def transform_trackml_data(event_id, overlap_theta=0.1, overlap_phi=0.1, num_bin
 
 #     return hits_data, track_params_data, hit_classes_data
 
-if __name__ == "__main__":
-    argparser = argparse.ArgumentParser()
-    argparser.add_argument('-e', '--event_id')
-    args = argparser.parse_args()
-
-    # evaluate the efficiency score as a function of the overlap and the number of bins, and store in 2d matrix
-    overlaps = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35]
-    num_bins = [2, 3, 4, 5, 6, 7, 8, 9, 10]
-
-    efficiency_matrix = np.zeros((len(overlaps), len(num_bins)))
-    efficiency_std_matrix = np.zeros((len(overlaps), len(num_bins)))
-    average_size_matrix = np.zeros((len(overlaps), len(num_bins)))
-
-    # def evaluate_split_event_wrapper(overlap, num_bins):
-    #     try:
-    #         data_subdivided, data = transform_trackml_data(event_id=event_id, overlap_theta=overlap, overlap_phi=overlap, num_bins_theta=num_bins, num_bins_phi=num_bins)
-    #         return evaluate_split_event(data, data_subdivided)
-    #     except ValueError:
-    #         return 0, 0, 0
-
+def generate_bins(num_bins, overlaps, event_id):
     bins_dict = {}
-    theta_bins = []
-    phi_bins = []
     breaking = False
     for i in range(len(overlaps)):
-        # run the wrapper in parallel
-        # results = Parallel(n_jobs=-1)(delayed(evaluate_split_event_wrapper)(overlaps[i], num_bins[j]) for j in range(len(num_bins)))
         for j in range(len(num_bins)):
             try:
-                data_subdivided, data, theta_bins, phi_bins = transform_trackml_data(event_id=args.event_id, overlap_theta=overlaps[i], overlap_phi=overlaps[i], num_bins_theta=num_bins[j], num_bins_phi=num_bins[j], theta_bins=theta_bins, phi_bins=phi_bins)
+                data_subdivided, data, theta_bins, phi_bins = transform_trackml_data(event_id=event_id, overlap_theta=overlaps[i], overlap_phi=overlaps[i], num_bins_theta=num_bins[j], num_bins_phi=num_bins[j], theta_bins=None, phi_bins=None)
                 results = evaluate_split_event(data, data_subdivided)
                 bins_dict[(i,j)] = (theta_bins, phi_bins)
                 breaking = False
@@ -248,17 +225,17 @@ if __name__ == "__main__":
             if breaking:
                 break
             
-            if args.event_id != '21000':
-                # store results in matrix
-                efficiency_matrix[i,j] = results[0]
-                efficiency_std_matrix[i,j] = results[1]
-                average_size_matrix[i,j] = results[2]
+            # store results in matrix
+            efficiency_matrix[i,j] = results[0]
+            efficiency_std_matrix[i,j] = results[1]
+            average_size_matrix[i,j] = results[2]
 
-    if args.event_id == '21000':
-        with open('bins.txt', 'a') as file:
-            file.write(json.dumps(bins_dict))
-        exit(0)
+    with open('bins.txt', 'a') as file:
+        file.write(json.dumps(bins_dict))
+    
+    return efficiency_matrix, efficiency_std_matrix, average_size_matrix
 
+def plot_matrices(event_id, num_bins, overlaps, efficiency_matrix, efficiency_std_matrix, average_size_matrix):
     efficiency_matrix = np.ma.masked_where(efficiency_matrix < 0.05, efficiency_matrix)
     efficiency_std_matrix = np.ma.masked_where(efficiency_matrix < 0.05, efficiency_std_matrix)
     average_size_matrix = np.ma.masked_where(efficiency_matrix < 0.05, average_size_matrix)
@@ -293,7 +270,7 @@ if __name__ == "__main__":
     # plt.show()
 
     # save image to file
-    fig.savefig(f'efficiency_score_{args.event_id}.png')
+    fig.savefig(f'efficiency_score_{event_id}.png')
 
     # plot number of values in each bin
     fig, ax = plt.subplots()
@@ -316,9 +293,55 @@ if __name__ == "__main__":
             text = ax.text(j, i, np.round(average_size_matrix[i, j], 0), fontsize="small",
                         ha="center", va="center", color="w")
     
-    ax.set_title(f"Average number of hits in each bin for event {args.event_id}")
+    ax.set_title(f"Average number of hits in each bin for event {event_id}")
     fig.tight_layout()
     # plt.show()
 
     # save image to file
-    fig.savefig(f'average_number_hits_{args.event_id}.png')
+    fig.savefig(f'average_number_hits_{event_id}.png')
+
+
+if __name__ == "__main__":
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument('-e', '--event_id')
+    args = argparser.parse_args()
+
+    # evaluate the efficiency score as a function of the overlap and the number of bins, and store in 2d matrix
+    overlaps = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35]
+    num_bins = [2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+    efficiency_matrix = np.zeros((len(overlaps), len(num_bins)))
+    efficiency_std_matrix = np.zeros((len(overlaps), len(num_bins)))
+    average_size_matrix = np.zeros((len(overlaps), len(num_bins)))
+
+    # def evaluate_split_event_wrapper(overlap, num_bins):
+    #     try:
+    #         data_subdivided, data = transform_trackml_data(event_id=event_id, overlap_theta=overlap, overlap_phi=overlap, num_bins_theta=num_bins, num_bins_phi=num_bins)
+    #         return evaluate_split_event(data, data_subdivided)
+    #     except ValueError:
+    #         return 0, 0, 0
+
+    if args.event_id == '21000':
+        efficiency_matrix, efficiency_std_matrix, average_size_matrix = generate_bins(num_bins, overlaps, args.event_id)
+        plot_matrices(num_bins, overlaps, efficiency_matrix, efficiency_std_matrix, average_size_matrix)
+        exit(0)
+
+    with open('bins.txt') as f: 
+        data = f.read() 
+    bins_dict = json.loads(data) 
+
+    for i in range(len(overlaps)):
+        # run the wrapper in parallel
+        # results = Parallel(n_jobs=-1)(delayed(evaluate_split_event_wrapper)(overlaps[i], num_bins[j]) for j in range(len(num_bins)))
+        for j in range(len(num_bins)):
+            theta_bins, phi_bins = bins_dict[(i,j)]
+            data_subdivided, data = transform_trackml_data(event_id=args.event_id, overlap_theta=overlaps[i], overlap_phi=overlaps[i], num_bins_theta=num_bins[j], num_bins_phi=num_bins[j], theta_bins=theta_bins, phi_bins=phi_bins)
+            results = evaluate_split_event(data, data_subdivided)
+            
+            efficiency_matrix[i,j] = results[0]
+            efficiency_std_matrix[i,j] = results[1]
+            average_size_matrix[i,j] = results[2]
+
+    plot_matrices(num_bins, overlaps, efficiency_matrix, efficiency_std_matrix, average_size_matrix)
+
+    
