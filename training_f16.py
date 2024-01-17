@@ -62,10 +62,9 @@ def evaluate(model, validation_loader, loss_fn):
     losses = 0.
     with torch.no_grad():
         for data in valid_loader:
-            _, hits_orig, track_params, _ = data
+            _, hits, track_params, _ = data
 
             # Make prediction
-            hits = hits_orig.clone()
             hits = hits.to(DEVICE)
             track_params = track_params.to(DEVICE)
             padding_mask = (hits == PAD_TOKEN).all(dim=2)
@@ -90,10 +89,9 @@ def predict(model, test_loader):
     predictions = {}
     score = 0.
     for data in test_loader:
-        event_id, hits_orig, track_params, track_labels = data
+        event_id, hits, track_params, track_labels = data
 
         # Make prediction
-        hits = hits_orig.clone()
         hits = hits.to(DEVICE)
         track_params = track_params.to(DEVICE)
         
