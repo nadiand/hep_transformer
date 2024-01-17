@@ -125,9 +125,9 @@ def evaluate_split_event(old_data, data):
 
 
 def transform_trackml_data(event_id, overlap_theta=0.1, overlap_phi=0.1, num_bins_theta=5, num_bins_phi=5, theta_bins=None, phi_bins=None):
-    hits_data = pd.read_csv(f'../../data/event0000{event_id}-hits.csv').head(110000*10)
-    particles_data = pd.read_csv(f'../../data/event0000{event_id}-particles.csv').head(110000*10)
-    truth_data = pd.read_csv(f'../../data/event0000{event_id}-truth.csv').head(110000*10)
+    hits_data = pd.read_csv(f'../../data/event0000{event_id}-hits.csv').head(110000*2)
+    particles_data = pd.read_csv(f'../../data/event0000{event_id}-particles.csv').head(110000*2)
+    truth_data = pd.read_csv(f'../../data/event0000{event_id}-truth.csv').head(110000*2)
 
     # Merge hit, truth and particle dataframes into a single one with the relevant variables
     hits_data = hits_data[["hit_id", "x", "y", "z", "volume_id"]]
@@ -309,8 +309,8 @@ if __name__ == "__main__":
     args = argparser.parse_args()
 
     # evaluate the efficiency score as a function of the overlap and the number of bins, and store in 2d matrix
-    overlaps = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35]
-    num_bins = [2, 3, 4, 5, 6, 7, 8, 9, 10]
+    overlaps = [0.05, 0.1] #, 0.15, 0.2, 0.25, 0.3, 0.35]
+    num_bins = [2, 3] #, 4, 5, 6, 7, 8, 9, 10]
 
     efficiency_matrix = np.zeros((len(overlaps), len(num_bins)))
     efficiency_std_matrix = np.zeros((len(overlaps), len(num_bins)))
@@ -325,7 +325,7 @@ if __name__ == "__main__":
 
     if args.event_id == '21000':
         efficiency_matrix, efficiency_std_matrix, average_size_matrix = generate_bins(num_bins, overlaps, args.event_id)
-        plot_matrices(num_bins, overlaps, efficiency_matrix, efficiency_std_matrix, average_size_matrix)
+        plot_matrices(args.event_id, num_bins, overlaps, efficiency_matrix, efficiency_std_matrix, average_size_matrix)
         exit(0)
 
     with open('bins.txt') as f: 
@@ -346,6 +346,6 @@ if __name__ == "__main__":
             efficiency_std_matrix[i,j] = results[1]
             average_size_matrix[i,j] = results[2]
 
-    plot_matrices(num_bins, overlaps, efficiency_matrix, efficiency_std_matrix, average_size_matrix)
+    plot_matrices(args.event_id, num_bins, overlaps, efficiency_matrix, efficiency_std_matrix, average_size_matrix)
 
     
