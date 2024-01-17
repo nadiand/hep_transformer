@@ -6,6 +6,7 @@ import argparse
 import matplotlib.pyplot as plt
 import matplotlib
 from joblib import Parallel, delayed
+import json
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -228,6 +229,7 @@ if __name__ == "__main__":
     #     except ValueError:
     #         return 0, 0, 0
 
+    bins_dict = {}
     theta_bins = []
     phi_bins = []
     breaking = False
@@ -235,23 +237,27 @@ if __name__ == "__main__":
         # run the wrapper in parallel
         # results = Parallel(n_jobs=-1)(delayed(evaluate_split_event_wrapper)(overlaps[i], num_bins[j]) for j in range(len(num_bins)))
         for j in range(len(num_bins)):
+            try:
+                data_subdivided, data, theta_bins, phi_bins = transform_trackml_data(event_id=args.event_id, overlap_theta=overlaps[i], overlap_phi=overlaps[i], num_bins_theta=num_bins[j], num_bins_phi=num_bins[j], theta_bins=theta_bins, phi_bins=phi_bins)
+                results = evaluate_split_event(data, data_subdivided)
+                bins_dict[(i,j)] = (theta_bins, phi_bins)
+                breaking = False
+            except ValueError:
+                breaking = True
 
-            for event_id in ['21000', args.event_id]:
-                try:
-                    data_subdivided, data, theta_bins, phi_bins = transform_trackml_data(event_id=event_id, overlap_theta=overlaps[i], overlap_phi=overlaps[i], num_bins_theta=num_bins[j], num_bins_phi=num_bins[j], theta_bins=theta_bins, phi_bins=phi_bins)
-                    results = evaluate_split_event(data, data_subdivided)
-                    breaking = False
-                except ValueError:
-                    breaking = True
+            if breaking:
+                break
+            
+            if args.event_id != '21000':
+                # store results in matrix
+                efficiency_matrix[i,j] = results[0]
+                efficiency_std_matrix[i,j] = results[1]
+                average_size_matrix[i,j] = results[2]
 
-                if breaking:
-                    break
-                
-                if event_id != '21000':
-                    # store results in matrix
-                    efficiency_matrix[i,j] = results[0]
-                    efficiency_std_matrix[i,j] = results[1]
-                    average_size_matrix[i,j] = results[2]
+    if args.event_id == '21000':
+        with open('bins.txt', 'a') as file:
+            file.write(json.dumps(bins_dict))
+        exit(0)
 
     efficiency_matrix = np.ma.masked_where(efficiency_matrix < 0.05, efficiency_matrix)
     efficiency_std_matrix = np.ma.masked_where(efficiency_matrix < 0.05, efficiency_std_matrix)
