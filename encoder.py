@@ -5,7 +5,8 @@ from torch.nn import Module, Linear, LayerNorm, Dropout, MultiheadAttention, Mod
 from torch import Tensor
 import torch.nn.functional as F
 
-from flash_attn.modules.mha import MHA
+# from flash_attn.modules.mha import MHA
+from flash_attn.flash_attention import FlashMHA
 
 class TransformerEncoder(Module):
     r"""TransformerEncoder is a stack of N encoder layers. Users can build the
@@ -80,6 +81,8 @@ class TransformerEncoder(Module):
         str_first_layer = "self.layers[0]"
         if not isinstance(first_layer, torch.nn.TransformerEncoderLayer):
             why_not_sparsity_fast_path = f"{str_first_layer} was not TransformerEncoderLayer"
+        elif self.training:
+            why_not_sparsity_fast_path = "training is enabled"
         elif first_layer.norm_first :
             why_not_sparsity_fast_path = f"{str_first_layer}.norm_first was True"
         elif not first_layer.self_attn.batch_first:
@@ -229,7 +232,7 @@ class TransformerEncoderLayer(Module):
                  device=None, dtype=None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.self_attn = MHA(d_model, nhead, dropout=dropout) #, batch_first=batch_first, **factory_kwargs)
+        self.self_attn = FlashMHA(d_model, nhead, dropout=dropout, batch_first=batch_first, **factory_kwargs)
         # Implementation of Feedforward model
         self.linear1 = Linear(d_model, dim_feedforward, **factory_kwargs)
         self.dropout = Dropout(dropout)
@@ -304,6 +307,8 @@ class TransformerEncoderLayer(Module):
             why_not_sparsity_fast_path = "self_attn.batch_first was not True"
         elif not self.self_attn._qkv_same_embed_dim :
             why_not_sparsity_fast_path = "self_attn._qkv_same_embed_dim was not True"
+        elif self.training:
+            why_not_sparsity_fast_path = "training is enabled"
         elif not self.activation_relu_or_gelu:
             why_not_sparsity_fast_path = "activation_relu_or_gelu was not True"
         elif not (self.norm1.eps == self.norm2.eps):

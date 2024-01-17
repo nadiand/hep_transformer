@@ -15,4 +15,8 @@ pip install torch==2.1.0
 pip install scikit-learn
 pip install pandas
 
-python training.py
+pip install packaging
+pip install ninja
+pip install flash-attn==1.0.4 --no-build-isolation
+
+python training_trackml.py
