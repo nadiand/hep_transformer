@@ -28,12 +28,25 @@ def visualize_track(coords, labels, label, nr):
     ax = fig.add_subplot(projection='3d')
 
     # Plot events
+    tracks = {}
     for i, coord in enumerate(coords):
         if coord[0] != -1.:
             x, y, z = convert_cylindrical_to_cartesian(coord[0], coord[1], coord[2])
-            
-            ax.scatter(x, y, z, marker=".", c=colors[labels[i].item()%50])
-            ax.plot(x, y, z, linestyle='-', color=colors[labels[i].item()%50])
+            track_id = labels[i].item() % 50
+            if not track_id in tracks.keys():
+                tracks[track_id] = [(x.item(), y.item(), z.item())]
+            else:
+                values = tracks[track_id]
+                values.append((x.item(), y.item(), z.item()))
+                tracks.update({track_id: values})
+            ax.scatter(x, y, z, marker=".", c=colors[track_id])
+
+    for t in tracks.keys():
+        coords = tracks[t]
+        xs = [coord[0] for coord in coords]
+        ys = [coord[1] for coord in coords]
+        zs = [coord[2] for coord in coords]
+        ax.plot(xs, ys, zs, linestyle="-", c=colors[t])
 
     # plt.savefig(f"figs/{label}{nr}.png")
     plt.show()
