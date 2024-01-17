@@ -24,27 +24,21 @@ def plot_score_vs_tracknr(preds):
     plt.show()
 
 def visualize_track(coords, labels, label, nr):
-    '''
-    Visualizes the simplified setup: the 5 detectors as spheres and a few 
-    events as the hits of the generated particles with the detectors.
-    '''
-    # Plot the detectors
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
 
     # Plot events
     for i, coord in enumerate(coords):
         if coord[0] != -1.:
-            plt.plot(coord[0]*np.cos(coord[1]), coord[0]*np.sin(coord[1]), coord[2], marker=".", c=colors[labels[i].item()])
-    
-    plt.savefig(f"figs/{label}{nr}.png")
+            x, y, z = convert_cylindrical_to_cartesian(coord[0], coord[1], coord[2])
+            
+            ax.scatter(x, y, z, marker=".", c=colors[labels[i].item()%50])
+            ax.plot(x, y, z, linestyle='-', color=colors[labels[i].item()%50])
+
+    # plt.savefig(f"figs/{label}{nr}.png")
+    plt.show()
 
 def visualize_3d_hits(data_df):
-    '''
-    Visualizes the simplified setup: the 5 detectors as spheres and a few 
-    events as the hits of the generated particles with the detectors.
-    '''
-    # Plot the detectors
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
 
