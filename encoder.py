@@ -8,104 +8,9 @@ from torch.nn.parameter import Parameter
 from torch.nn.modules.linear import NonDynamicallyQuantizableLinear
 from torch.nn.init import constant_, xavier_normal_, xavier_uniform_
 
-# from flash_attn.modules.mha import MHA
+from flash_attn.flash_attention import FlashMHA
 # from flash_attn.flash_attn_interface import flash_attn_qkvpacked_func, flash_attn_func
-from FlashMHA import FlashMHA
-
-class TransformerEncoder(Module):
-    r"""TransformerEncoder is a stack of N encoder layers. Users can build the
-    BERT(https://arxiv.org/abs/1810.04805) model with corresponding parameters.
-
-    Args:
-        encoder_layer: an instance of the TransformerEncoderLayer() class (required).
-        num_layers: the number of sub-encoder-layers in the encoder (required).
-        norm: the layer normalization component (optional).
-        enable_nested_tensor: if True, input will automatically convert to nested tensor
-            (and convert back on output). This will improve the overall performance of
-            TransformerEncoder when padding rate is high. Default: ``True`` (enabled).
-
-    Examples::
-        >>> encoder_layer = nn.TransformerEncoderLayer(d_model=512, nhead=8)
-        >>> transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
-        >>> src = torch.rand(10, 32, 512)
-        >>> out = transformer_encoder(src)
-    """
-    __constants__ = ['norm']
-
-    def __init__(self, encoder_layer, num_layers, norm=None, enable_nested_tensor=True, mask_check=True):
-        super().__init__()
-        torch._C._log_api_usage_once(f"torch.nn.modules.{self.__class__.__name__}")
-        self.layers = _get_clones(encoder_layer, num_layers)
-        self.num_layers = num_layers
-        self.norm = norm
-        self.enable_nested_tensor = enable_nested_tensor
-        self.mask_check = mask_check
-
-    def forward(
-            self,
-            src: Tensor,
-            mask: Optional[Tensor] = None,
-            src_key_padding_mask: Optional[Tensor] = None,
-            is_causal: Optional[bool] = None) -> Tensor:
-        r"""Pass the input through the encoder layers in turn.
-
-        Args:
-            src: the sequence to the encoder (required).
-            mask: the mask for the src sequence (optional).
-            is_causal: If specified, applies a causal mask as mask (optional)
-                and ignores attn_mask for computing scaled dot product attention.
-                Default: ``False``.
-            src_key_padding_mask: the mask for the src keys per batch (optional).
-
-        Shape:
-            see the docs in Transformer class.
-        """
-        src_key_padding_mask = F._canonical_mask(
-            mask=src_key_padding_mask,
-            mask_name="src_key_padding_mask",
-            other_type=F._none_or_dtype(mask),
-            other_name="mask",
-            target_type=src.dtype
-        )
-
-        mask = F._canonical_mask(
-            mask=mask,
-            mask_name="mask",
-            other_type=None,
-            other_name="",
-            target_type=src.dtype,
-            check_other=False,
-        )
-
-        output = src
-        convert_to_nested = False
-        src_key_padding_mask_for_layers = src_key_padding_mask
-
-        # Prevent type refinement
-        make_causal = (is_causal is True)
-
-        if is_causal is None:
-            if mask is not None:
-                sz = mask.size(0)
-                causal_comparison = torch.triu(
-                    torch.ones(sz, sz, device=mask.device) * float('-inf'), diagonal=1
-                ).to(mask.dtype)
-
-                if torch.equal(mask, causal_comparison):
-                    make_causal = True
-
-        is_causal = make_causal
-
-        for mod in self.layers:
-            output = mod(output, src_mask=mask, is_causal=is_causal, src_key_padding_mask=src_key_padding_mask_for_layers)
-
-        if convert_to_nested:
-            output = output.to_padded_tensor(0.)
-
-        if self.norm is not None:
-            output = self.norm(output)
-
-        return output
+# from FlashMHA import FlashMHA
 
 
 class TransformerEncoderLayer(Module):
@@ -117,7 +22,7 @@ class TransformerEncoderLayer(Module):
                  device=None, dtype=None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.self_attn = FlashMHA(d_model, nhead, dropout=dropout, batch_first=batch_first, **factory_kwargs)
+        self.self_attn = FlashMHA(d_model, nhead, attention_dropout=dropout, batch_first=batch_first, **factory_kwargs)
         # Implementation of Feedforward model
         self.linear1 = Linear(d_model, dim_feedforward, **factory_kwargs)
         self.dropout = Dropout(dropout)
