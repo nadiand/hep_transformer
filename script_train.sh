@@ -13,14 +13,14 @@ module load 2022 Python/3.10.4-GCCcore-11.3.0
 module load CUDA/11.8.0
 module load cuDNN/8.6.0.163-CUDA-11.8.0
 
-pip install --upgrade pip
-pip install torch
-pip install scikit-learn
-pip install pandas
+python -m pip install --upgrade pip
+python -m pip install torch
+python -m pip install scikit-learn
+python -m pip install pandas
 
-pip install packaging
-pip install ninja
-pip install flash-attn==1.0.4 --no-build-isolation
+python -m pip install packaging
+python -m pip install ninja
+python -m pip install flash-attn==1.0.4 --no-build-isolation
 
 ls /lib | grep cuda
 ls /usr/lib | grep cuda
