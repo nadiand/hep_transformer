@@ -9,7 +9,7 @@ from torch.nn.modules.linear import NonDynamicallyQuantizableLinear
 from torch.nn.init import constant_, xavier_normal_, xavier_uniform_
 
 # from flash_attn.modules.mha import MHA
-from flash_attn import flash_attn_qkvpacked_func, flash_attn_func
+from flash_attn.flash_attn_interface import flash_attn_qkvpacked_func, flash_attn_func
 
 class TransformerEncoder(Module):
     r"""TransformerEncoder is a stack of N encoder layers. Users can build the
