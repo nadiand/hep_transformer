@@ -127,7 +127,7 @@ if __name__ == "__main__":
                                                               train_frac=0.7,
                                                               valid_frac=0.15,
                                                               test_frac=0.15,
-                                                              batch_size=2)
+                                                              batch_size=16)
     print("data loaded")
 
     # Transformer model
