@@ -254,6 +254,7 @@ class TransformerEncoderLayer(Module):
     # self-attention block
     def _sa_block(self, x: Tensor,
                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
+        # put the call here and remove the mha ??? TODO
         x = self.self_attn(x, x, x,
                            attn_mask=attn_mask,
                            key_padding_mask=key_padding_mask,
@@ -500,6 +501,7 @@ class MultiheadAttention(Module):
         assert not any_nested, ("MultiheadAttention does not support NestedTensor outside of its fast path. ")
 
         if self.batch_first and is_batched:
+            print(self.batch_first)
             # make sure that the transpose op does not affect the "is" property
             if key is value:
                 if query is key:
