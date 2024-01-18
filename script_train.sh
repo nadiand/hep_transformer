@@ -14,7 +14,8 @@ module load CUDA/11.8.0
 module load cuDNN/8.6.0.163-CUDA-11.8.0
 
 python -m pip install --upgrade pip
-python -m pip install torch==2.1.2
+#python -m pip install torch==2.1.2
+pthon -m pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121
 python -m pip install scikit-learn
 python -m pip install pandas
 
