@@ -144,9 +144,10 @@ def transform_trackml_data(event_id, overlap_theta=0.1, overlap_phi=0.1, num_bin
         data_subdivided, data, theta_bins, phi_bins = split_event(final_data, overlap_theta=overlap_theta, overlap_phi=overlap_phi, num_bins_theta=num_bins_theta, num_bins_phi=num_bins_phi)
     else:
         data_subdivided, data = split_event_fixedbins(final_data, num_bins_theta=num_bins_theta, num_bins_phi=num_bins_phi, theta_bins=theta_bins, phi_bins=phi_bins)
-    # ready_data = split_data.sort_values('event_class')
+    ready_data = data_subdivided.sort_values('event_class')
 
     # Write the sub-events to a file
+    ready_data.to_csv('trackml_data_subdivided.csv', mode='a', index=False, header=False)
     # data_type = random.choices(["train", "test", "val"], cum_weights=[70, 15, 15])[0]
     # if data_type == "train":
     #     ready_data.to_csv('trackml_train_data_subdivided.csv', mode='a', index=False, header=False)
