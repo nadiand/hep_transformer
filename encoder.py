@@ -510,6 +510,10 @@ class MultiheadAttention(Module):
             else:
                 query, key, value = [x.transpose(1, 0) for x in (query, key, value)]
 
+        print(query.shape)
+        print(key.shape)
+        print(value.shape)
+
         with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):
             attn_output = F.scaled_dot_product_attention(
                 query, key, value,
