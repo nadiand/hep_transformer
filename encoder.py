@@ -8,8 +8,8 @@ from torch.nn.parameter import Parameter
 from torch.nn.modules.linear import NonDynamicallyQuantizableLinear
 from torch.nn.init import constant_, xavier_normal_, xavier_uniform_
 
-from flash_attn.flash_attention import FlashMHA
-# from flash_attn.flash_attn_interface import flash_attn_qkvpacked_func, flash_attn_func
+# from flash_attn.flash_attention import FlashMHA
+from flash_attn.flash_attn_interface import flash_attn_qkvpacked_func, flash_attn_func
 # from FlashMHA import FlashMHA
 
 
@@ -232,8 +232,8 @@ class MultiheadAttention(Module):
             else:
                 query, key, value = [x.transpose(1, 0) for x in (query, key, value)]
 
-        # flash_attn_func(query, key, value)
-        attn_output = None
+        attn_output = flash_attn_func(query, key, value, dropout=self.dropout)
+        # attn_output = None
         if self.batch_first and is_batched:
             return attn_output.transpose(1, 0)
         else:
