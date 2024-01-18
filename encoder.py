@@ -9,7 +9,7 @@ from torch.nn.modules.linear import NonDynamicallyQuantizableLinear
 from torch.nn.init import constant_, xavier_normal_, xavier_uniform_
 
 # from flash_attn.modules.mha import MHA
-from flash_attn.flash_attn_interface import flash_attn_qkvpacked_func, flash_attn_func
+# from flash_attn.flash_attn_interface import flash_attn_qkvpacked_func, flash_attn_func
 
 class TransformerEncoder(Module):
     r"""TransformerEncoder is a stack of N encoder layers. Users can build the
@@ -510,7 +510,13 @@ class MultiheadAttention(Module):
             else:
                 query, key, value = [x.transpose(1, 0) for x in (query, key, value)]
 
-        attn_output = flash_attn_func(query, key, value, causal=is_causal)
+        with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):
+            attn_output = F.scaled_dot_product_attention(
+                query, key, value,
+                attn_mask = attn_mask,
+                dropout_p = self.dropout, 
+                is_causal = is_causal
+            )
         if self.batch_first and is_batched:
             return attn_output.transpose(1, 0)
         else:

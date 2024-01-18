@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
+# from torch.nn import TransformerEncoder, TransformerEncoderLayer
 
 from encoder import *
 
