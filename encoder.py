@@ -5,7 +5,7 @@ from torch.nn import Module, Linear, LayerNorm, Dropout, ModuleList
 from torch import Tensor
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
-from torch.nn.functional.linear import NonDynamicallyQuantizableLinear
+from torch.nn.modules.linear import NonDynamicallyQuantizableLinear
 from torch.nn.init import constant_, xavier_normal_, xavier_uniform_
 
 # from flash_attn.modules.mha import MHA
