@@ -11,7 +11,7 @@ from trackml_data import load_trackml_data
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def clustering(pred_params):
-    clustering_algorithm = AgglomerativeClustering(n_clusters=None, distance_threshold=0.1) #, affinity='precomputed', linkage='single')
+    clustering_algorithm = AgglomerativeClustering(n_clusters=None, distance_threshold=0.1)
     cluster_labels = []
     for _, event_prediction in enumerate(pred_params):
         regressed_params = np.array(event_prediction.tolist())

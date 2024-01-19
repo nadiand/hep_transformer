@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import numpy as np
-# from torch.nn import MultiheadAttention, TransformerEncoder, TransformerEncoderLayer
 
 from encoder import *
 
@@ -28,14 +27,9 @@ class TransformerClassifier(nn.Module):
         self.decoder = nn.Linear(d_model, output_size)
 
     def forward(self, input, padding_mask):
-        # print(input)
         x = self.input_layer(input)
-        # print(x)
         memory = self.encoder(src=x, src_key_padding_mask=padding_mask)
-        # print(memory)
         out = self.decoder(memory)
-        # print(out)
-        # print()
         return out
 
 def save_model(model, optim, type, val_losses, train_losses, epoch, count, file_name):

@@ -1,16 +1,8 @@
-import copy
-from typing import Optional, Union, Callable, Tuple
+from typing import Optional, Union, Callable
 import torch
-from torch.nn import Module, Linear, LayerNorm, Dropout, ModuleList
+from torch.nn import Module, Linear, LayerNorm, Dropout
 from torch import Tensor
 import torch.nn.functional as F
-from torch.nn.parameter import Parameter
-from torch.nn.modules.linear import NonDynamicallyQuantizableLinear
-from torch.nn.init import constant_, xavier_normal_, xavier_uniform_
-
-# from flash_attn.flash_attention import FlashMHA
-# from flash_attn.flash_attn_interface import flash_attn_qkvpacked_func, flash_attn_func
-# from FlashMHA import FlashMHA
 
 
 class TransformerEncoderLayer(Module):
@@ -22,7 +14,6 @@ class TransformerEncoderLayer(Module):
                  device=None, dtype=None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
-        # self.self_attn = FlashMHA(d_model, nhead, attention_dropout=dropout, batch_first=batch_first, **factory_kwargs)
         self.self_attn = CausalSelfAttention(num_heads=nhead, embed_dimension=d_model, bias=False, is_causal=True, dropout=dropout)
         # Implementation of Feedforward model
         self.linear1 = Linear(d_model, dim_feedforward, **factory_kwargs)
@@ -100,10 +91,6 @@ class TransformerEncoderLayer(Module):
     def _ff_block(self, x: Tensor) -> Tensor:
         x = self.linear2(self.dropout(self.activation(self.linear1(x))))
         return self.dropout2(x)
-    
-def _get_clones(module, N):
-    # FIXME: copy.deepcopy() is not defined on nn.module
-    return ModuleList([copy.deepcopy(module) for i in range(N)])
 
 def _get_activation_fn(activation: str) -> Callable[[Tensor], Tensor]:
     if activation == "relu":
@@ -113,7 +100,6 @@ def _get_activation_fn(activation: str) -> Callable[[Tensor], Tensor]:
 
     raise RuntimeError("activation should be relu/gelu, not {}".format(activation))
 
-    
 
 class CausalSelfAttention(Module):
     """
