@@ -190,7 +190,9 @@ def load_trackml_data(data_path, normalize=False):
     grouped_hit_classes_data = data_grouped_by_event.apply(extract_hit_classes_data)
 
     # Stack them together into one tensor
-    hits_data = torch.nested.nested_tensor(np.stack(grouped_hits_data.values))
+    print(grouped_hits_data)
+    test = np.stack(grouped_hits_data.values)
+    hits_data = torch.nested.nested_tensor(test)
     track_params_data = torch.nested.nested_tensor(np.stack(grouped_track_params_data.values))
     hit_classes_data = torch.nested.nested_tensor(np.stack(grouped_hit_classes_data.values))
 
