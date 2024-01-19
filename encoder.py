@@ -293,7 +293,7 @@ class MultiheadAttention(Module):
 
 class CausalSelfAttention(Module):
 
-    def __init__(self, num_heads: int, embed_dimension: int, bias: bool=False, is_causal: bool=False, dropout:float=0.0):
+    def __init__(self, num_heads: int, embed_dimension: int, bias: bool=False, is_causal: bool=False, dropout:float=0.0, batch_first: bool=True):
         super().__init__()
         assert embed_dimension % num_heads == 0
         # key, query, value projections for all heads, but in a batch
@@ -307,6 +307,8 @@ class CausalSelfAttention(Module):
         self.embed_dimension = embed_dimension
         # Perform causal masking
         self.is_causal = is_causal
+        
+        self.batch_first = batch_first
 
     def forward(self, x):
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
@@ -328,6 +330,7 @@ class CausalSelfAttention(Module):
             dropout = 0.0
             is_causal = False
 
+        # WHAT ABOUT ATTENTION MASK???? TODO
         y = F.scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=dropout, is_causal=is_causal)
         y = y.transpose(1, 2).view(batch_size, -1, self.num_heads * head_dim)
 
