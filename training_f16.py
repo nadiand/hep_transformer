@@ -51,7 +51,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
         intermid_loss += loss
         # Update loss and scaler
         if i % BATCH_SIZE == 0:
-            avg_intermid_loss = intermid_loss.item()/BATCH_SIZE
+            avg_intermid_loss = intermid_loss/BATCH_SIZE
             scaler.scale(avg_intermid_loss).backward()
             scaler.step(optim)
             scaler.update()
@@ -87,7 +87,7 @@ def evaluate(model, validation_loader, loss_fn):
 
             intermid_loss += loss
             if i % BATCH_SIZE == 0:
-                avg_intermid_loss = intermid_loss.item()/BATCH_SIZE
+                avg_intermid_loss = intermid_loss/BATCH_SIZE
                 losses += avg_intermid_loss.item()
                 intermid_loss = 0.
             
