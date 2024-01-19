@@ -233,7 +233,7 @@ class MultiheadAttention(Module):
             else:
                 query, key, value = [x.transpose(1, 0) for x in (query, key, value)]
 
-        attn_output = flash_attn_func(query, key, value, dropout=self.dropout)
+        attn_output = None #flash_attn_func(query, key, value, dropout=self.dropout)
         # attn_output = None
         if self.batch_first and is_batched:
             return attn_output.transpose(1, 0)

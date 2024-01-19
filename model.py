@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
-# from torch.nn import TransformerEncoder, TransformerEncoderLayer
+# from torch.nn import MultiheadAttention, TransformerEncoder, TransformerEncoderLayer
 
 from encoder import *
 
@@ -24,7 +24,7 @@ class TransformerClassifier(nn.Module):
         super(TransformerClassifier, self).__init__()
         self.input_layer = nn.Linear(input_size, d_model)
         encoder_layers = TransformerEncoderLayer(d_model, n_head, dim_feedforward, dropout, batch_first=True)
-        self.encoder = TransformerEncoder(encoder_layers, num_encoder_layers)
+        self.encoder = nn.TransformerEncoder(encoder_layers, num_encoder_layers)
         self.decoder = nn.Linear(d_model, output_size)
 
     def forward(self, input, padding_mask):
