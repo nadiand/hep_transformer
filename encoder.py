@@ -22,7 +22,6 @@ class TransformerEncoderLayer(Module):
                  device=None, dtype=None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
-        # self.self_attn = FlashMHA(d_model, nhead, attention_dropout=dropout, batch_first=batch_first, **factory_kwargs)
         self.self_attn = CausalSelfAttention(num_heads=nhead, embed_dimension=d_model, bias=False, is_causal=True, dropout=dropout)
         # Implementation of Feedforward model
         self.linear1 = Linear(d_model, dim_feedforward, **factory_kwargs)
@@ -55,44 +54,20 @@ class TransformerEncoderLayer(Module):
             self.activation = F.relu
 
 
-    def forward(
-            self,
-            src: Tensor,
-            src_mask: Optional[Tensor] = None,
-            src_key_padding_mask: Optional[Tensor] = None,
-            is_causal: bool = False) -> Tensor:
-
-        src_key_padding_mask = F._canonical_mask(
-            mask=src_key_padding_mask,
-            mask_name="src_key_padding_mask",
-            other_type=F._none_or_dtype(src_mask),
-            other_name="src_mask",
-            target_type=src.dtype
-        )
-
-        src_mask = F._canonical_mask(
-            mask=src_mask,
-            mask_name="src_mask",
-            other_type=None,
-            other_name="",
-            target_type=src.dtype,
-            check_other=False,
-        )
-
-
+    def forward(self, src: Tensor) -> Tensor:
+        
         x = src
         if self.norm_first:
-            x = x + self._sa_block(self.norm1(x), src_mask, src_key_padding_mask, is_causal=is_causal)
+            x = x + self._sa_block(self.norm1(x))
             x = x + self._ff_block(self.norm2(x))
         else:
-            x = self.norm1(x + self._sa_block(x, src_mask, src_key_padding_mask, is_causal=is_causal))
+            x = self.norm1(x + self._sa_block(x))
             x = self.norm2(x + self._ff_block(x))
 
         return x
 
     # self-attention block
-    def _sa_block(self, x: Tensor,
-                  attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
+    def _sa_block(self, x: Tensor) -> Tensor:
         x = self.self_attn(x)
         return self.dropout1(x)
 
@@ -101,9 +76,6 @@ class TransformerEncoderLayer(Module):
         x = self.linear2(self.dropout(self.activation(self.linear1(x))))
         return self.dropout2(x)
     
-def _get_clones(module, N):
-    # FIXME: copy.deepcopy() is not defined on nn.module
-    return ModuleList([copy.deepcopy(module) for i in range(N)])
 
 def _get_activation_fn(activation: str) -> Callable[[Tensor], Tensor]:
     if activation == "relu":
@@ -114,7 +86,6 @@ def _get_activation_fn(activation: str) -> Callable[[Tensor], Tensor]:
     raise RuntimeError("activation should be relu/gelu, not {}".format(activation))
 
     
-
 class CausalSelfAttention(Module):
     """
     Taken and adapted from pytorch tutorial on SDPA: 
