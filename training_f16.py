@@ -38,7 +38,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
         # Move to CUDA
         hits = hits.to(DEVICE)
         track_params = track_params.to(DEVICE)
-        padding_mask = (hits == PAD_TOKEN) #.all(dim=2)
+        padding_mask = (hits == PAD_TOKEN).all(dim=2)
 
         hits = hits[~padding_mask]
 
