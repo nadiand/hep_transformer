@@ -27,9 +27,9 @@ class TransformerClassifier(nn.Module):
         self.encoder = nn.TransformerEncoder(encoder_layers, num_encoder_layers, enable_nested_tensor=False)
         self.decoder = nn.Linear(d_model, output_size)
 
-    def forward(self, input, padding_mask):
+    def forward(self, input):
         x = self.input_layer(input)
-        memory = self.encoder(src=x, src_key_padding_mask=padding_mask)
+        memory = self.encoder(src=x)
         out = self.decoder(memory)
         return out
 
