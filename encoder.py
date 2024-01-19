@@ -97,7 +97,7 @@ class TransformerEncoderLayer(Module):
         #                    attn_mask=attn_mask,
         #                    key_padding_mask=key_padding_mask,
         #                    need_weights=False, is_causal=is_causal)[0]
-        x = self.self_attn(x)
+        x = self.self_attn(x, attn_mask)
         return self.dropout1(x)
 
     # feed forward block
@@ -315,7 +315,7 @@ class CausalSelfAttention(Module):
 
         self.batch_first = batch_first
 
-    def forward(self, x):
+    def forward(self, x, attn_mask):
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
         query_projected = self.c_attn(x)
 
@@ -337,7 +337,7 @@ class CausalSelfAttention(Module):
 
         # WHAT ABOUT ATTENTION MASK???? TODO
         with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):
-            y = F.scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=dropout, is_causal=is_causal)
+            y = F.scaled_dot_product_attention(query, key, value, attn_mask=attn_mask, dropout_p=dropout, is_causal=is_causal)
         
         y = y.transpose(1, 2).view(batch_size, -1, self.num_heads * head_dim)
 
