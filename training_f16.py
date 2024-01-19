@@ -40,7 +40,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
         track_params = track_params.to(DEVICE)
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
 
-        hits = hits[hits != PAD_TOKEN]
+        hits = hits[~padding_mask]
 
         # Make prediction
         with torch.cuda.amp.autocast():
