@@ -41,6 +41,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
 
         hits = torch.unsqueeze(hits[~padding_mask], 0)
+        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
 
         # Make prediction
         with torch.cuda.amp.autocast():
@@ -75,13 +76,15 @@ def evaluate(model, validation_loader, loss_fn):
             hits = hits.to(DEVICE)
             track_params = track_params.to(DEVICE)
             padding_mask = (hits == PAD_TOKEN).all(dim=2)
+
+            hits = torch.unsqueeze(hits[~padding_mask], 0)
+            track_params = torch.unsqueeze(track_params[~padding_mask], 0)
             
             with torch.cuda.amp.autocast():
                 pred = model(hits, padding_mask)
                 loss = loss_fn(pred, track_params)
 
             losses += loss.item()
-            track_params = track_params[:, :pred.shape[1] ,:]
             
 
     return losses / len(validation_loader)
@@ -101,14 +104,14 @@ def predict(model, test_loader):
         # Make prediction
         hits = hits.to(DEVICE)
         track_params = track_params.to(DEVICE)
-        
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
+
+        hits = torch.unsqueeze(hits[~padding_mask], 0)
+        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
+        track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
+
         with torch.cuda.amp.autocast():
             pred = model(hits, padding_mask)
-        
-        track_params = track_params[:, :pred.shape[1] ,:]
-        track_labels = track_labels[:, :pred.shape[1]]
-        hits = hits[:, :pred.shape[1], :]
 
         cluster_labels = clustering(pred)
         event_score = calc_score_trackml(cluster_labels, track_labels)
