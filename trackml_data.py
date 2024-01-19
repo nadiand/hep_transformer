@@ -165,7 +165,8 @@ def load_trackml_data(data_path, normalize=False):
     def extract_hits_data(event_rows):
         # Returns the hit coordinates as a padded sequence; this is the input to the transformer
         event_hit_data = event_rows[["x", "y", "z"]].to_numpy(dtype=np.float32)
-        return np.pad(event_hit_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
+        return event_hit_data
+        # return np.pad(event_hit_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
 
     def extract_track_params_data(event_rows):
         # Returns the track parameters as a padded sequence; this is what the transformer must regress
@@ -174,12 +175,14 @@ def load_trackml_data(data_path, normalize=False):
         theta = np.arccos(event_track_params_data[:,5]/p)
         phi = np.arctan2(event_track_params_data[:,4], event_track_params_data[:,3])
         processed_event_track_params_data = np.column_stack([theta, phi, event_track_params_data[:,6]])
-        return np.pad(processed_event_track_params_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
+        return processed_event_track_params_data
+        # return np.pad(processed_event_track_params_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
 
     def extract_hit_classes_data(event_rows):
         # Returns the particle information as a padded sequence; this is used for weighting in the calculation of trackML score
         event_hit_classes_data = event_rows[["particle_id","weight"]].to_numpy(dtype=np.float32)
-        return np.pad(event_hit_classes_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
+        return event_hit_classes_data
+        # return np.pad(event_hit_classes_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
 
     # Get the hits, track params and their weights as sequences padded up to a max length
     grouped_hits_data = data_grouped_by_event.apply(extract_hits_data)
@@ -187,9 +190,9 @@ def load_trackml_data(data_path, normalize=False):
     grouped_hit_classes_data = data_grouped_by_event.apply(extract_hit_classes_data)
 
     # Stack them together into one tensor
-    hits_data = torch.tensor(np.stack(grouped_hits_data.values))
-    track_params_data = torch.tensor(np.stack(grouped_track_params_data.values))
-    hit_classes_data = torch.tensor(np.stack(grouped_hit_classes_data.values))
+    hits_data = torch.nested.nested_tensor(np.stack(grouped_hits_data.values))
+    track_params_data = torch.nested.nested_tensor(np.stack(grouped_track_params_data.values))
+    hit_classes_data = torch.nested.nested_tensor(np.stack(grouped_hit_classes_data.values))
 
     return hits_data, track_params_data, hit_classes_data
 
