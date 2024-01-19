@@ -40,6 +40,8 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
         track_params = track_params.to(DEVICE)
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
 
+        hits = hits[hits != PAD_TOKEN]
+
         # Make prediction
         with torch.cuda.amp.autocast():
             pred = model(hits, padding_mask)
@@ -48,6 +50,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
         intermid_loss += loss
         # Update loss and scaler
         if i % BATCH_SIZE == 0:
+            print('here')
             scaler.scale(intermid_loss).backward()
             scaler.step(optim)
             scaler.update()
