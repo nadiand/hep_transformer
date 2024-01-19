@@ -332,7 +332,9 @@ class CausalSelfAttention(Module):
             is_causal = False
 
         # WHAT ABOUT ATTENTION MASK???? TODO
-        y = F.scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=dropout, is_causal=is_causal)
+        with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):
+            y = F.scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=dropout, is_causal=is_causal)
+        
         y = y.transpose(1, 2).view(batch_size, -1, self.num_heads * head_dim)
 
         y = self.resid_dropout(self.c_proj(y))
