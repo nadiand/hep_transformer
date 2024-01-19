@@ -241,55 +241,6 @@ class MultiheadAttention(Module):
         else:
             return attn_output
 
-def merge_masks(self, attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor],
-                query: Tensor) -> Tuple[Optional[Tensor], Optional[int]]:
-    r"""
-    Determine mask type and combine masks if necessary. If only one mask is provided, that mask
-    and the corresponding mask type will be returned. If both masks are provided, they will be both
-    expanded to shape ``(batch_size, num_heads, seq_len, seq_len)``, combined with logical ``or``
-    and mask type 2 will be returned
-    Args:
-        attn_mask: attention mask of shape ``(seq_len, seq_len)``, mask type 0
-        key_padding_mask: padding mask of shape ``(batch_size, seq_len)``, mask type 1
-        query: query embeddings of shape ``(batch_size, seq_len, embed_dim)``
-    Returns:
-        merged_mask: merged mask
-        mask_type: merged mask type (0, 1, or 2)
-    """
-    mask_type: Optional[int] = None
-    merged_mask: Optional[Tensor] = None
-
-    attn_mask = F._canonical_mask(
-        mask=attn_mask,
-        mask_name="attn_mask",
-        other_type=None,
-        other_name="",
-        target_type=query.dtype,
-        check_other=False,
-    )
-
-    if key_padding_mask is not None:
-        mask_type = 1
-        merged_mask = key_padding_mask
-
-    if attn_mask is not None:
-        # In this branch query can't be a nested tensor, so it has a shape
-        batch_size, seq_len, _ = query.shape
-        mask_type = 2
-
-        # Always expands attn_mask to 4D
-        if attn_mask.dim() == 3:
-            attn_mask_expanded = attn_mask.view(batch_size, -1, seq_len, seq_len)
-        else:  # attn_mask.dim() == 2:
-            attn_mask_expanded = attn_mask.view(1, 1, seq_len, seq_len).expand(batch_size, self.num_heads, -1, -1)
-        merged_mask = attn_mask_expanded
-
-        if key_padding_mask is not None:
-            key_padding_mask_expanded = key_padding_mask.view(batch_size, 1, 1, seq_len).expand(-1, self.num_heads, -1, -1)
-            merged_mask = attn_mask_expanded + key_padding_mask_expanded
-
-    # no attn_mask and no key_padding_mask, returns None, None
-    return merged_mask, mask_type
     
 
 class CausalSelfAttention(Module):
@@ -351,7 +302,7 @@ class CausalSelfAttention(Module):
             target_type=query.dtype,
             check_other=False,
         )
-        merged_masks = merge_masks(attn_mask=attn_mask, key_padding_mask=key_padding_mask, query=query)
+        merged_masks = self.merge_masks(attn_mask=attn_mask, key_padding_mask=key_padding_mask, query=query)
 
         with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):
             y = F.scaled_dot_product_attention(query, key, value, attn_mask=merged_masks, dropout_p=dropout, is_causal=is_causal)
@@ -360,3 +311,53 @@ class CausalSelfAttention(Module):
 
         y = self.resid_dropout(self.c_proj(y))
         return y
+
+    def merge_masks(self, attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor],
+                query: Tensor) -> Tuple[Optional[Tensor], Optional[int]]:
+        r"""
+        Determine mask type and combine masks if necessary. If only one mask is provided, that mask
+        and the corresponding mask type will be returned. If both masks are provided, they will be both
+        expanded to shape ``(batch_size, num_heads, seq_len, seq_len)``, combined with logical ``or``
+        and mask type 2 will be returned
+        Args:
+            attn_mask: attention mask of shape ``(seq_len, seq_len)``, mask type 0
+            key_padding_mask: padding mask of shape ``(batch_size, seq_len)``, mask type 1
+            query: query embeddings of shape ``(batch_size, seq_len, embed_dim)``
+        Returns:
+            merged_mask: merged mask
+            mask_type: merged mask type (0, 1, or 2)
+        """
+        mask_type: Optional[int] = None
+        merged_mask: Optional[Tensor] = None
+
+        attn_mask = F._canonical_mask(
+            mask=attn_mask,
+            mask_name="attn_mask",
+            other_type=None,
+            other_name="",
+            target_type=query.dtype,
+            check_other=False,
+        )
+
+        if key_padding_mask is not None:
+            mask_type = 1
+            merged_mask = key_padding_mask
+
+        if attn_mask is not None:
+            # In this branch query can't be a nested tensor, so it has a shape
+            batch_size, seq_len, _ = query.shape
+            mask_type = 2
+
+            # Always expands attn_mask to 4D
+            if attn_mask.dim() == 3:
+                attn_mask_expanded = attn_mask.view(batch_size, -1, seq_len, seq_len)
+            else:  # attn_mask.dim() == 2:
+                attn_mask_expanded = attn_mask.view(1, 1, seq_len, seq_len).expand(batch_size, self.num_heads, -1, -1)
+            merged_mask = attn_mask_expanded
+
+            if key_padding_mask is not None:
+                key_padding_mask_expanded = key_padding_mask.view(batch_size, 1, 1, seq_len).expand(-1, self.num_heads, -1, -1)
+                merged_mask = attn_mask_expanded + key_padding_mask_expanded
+
+        # no attn_mask and no key_padding_mask, returns None, None
+        return merged_mask, mask_type
