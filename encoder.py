@@ -93,10 +93,11 @@ class TransformerEncoderLayer(Module):
     # self-attention block
     def _sa_block(self, x: Tensor,
                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
-        x = self.self_attn(x, x, x,
-                           attn_mask=attn_mask,
-                           key_padding_mask=key_padding_mask,
-                           need_weights=False, is_causal=is_causal)[0]
+        # x = self.self_attn(x, x, x,
+        #                    attn_mask=attn_mask,
+        #                    key_padding_mask=key_padding_mask,
+        #                    need_weights=False, is_causal=is_causal)[0]
+        x = self.self_attn(x)
         return self.dropout1(x)
 
     # feed forward block
@@ -307,7 +308,7 @@ class CausalSelfAttention(Module):
         self.embed_dimension = embed_dimension
         # Perform causal masking
         self.is_causal = is_causal
-        
+
         self.batch_first = batch_first
 
     def forward(self, x):
