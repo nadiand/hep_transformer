@@ -27,10 +27,15 @@ class TransformerClassifier(nn.Module):
         self.encoder = nn.TransformerEncoder(encoder_layers, num_encoder_layers, enable_nested_tensor=False)
         self.decoder = nn.Linear(d_model, output_size)
 
-    def forward(self, input):
+    def forward(self, input, padding_mask):
+        # print(input)
         x = self.input_layer(input)
-        memory = self.encoder(src=x)
+        # print(x)
+        memory = self.encoder(src=x, src_key_padding_mask=padding_mask)
+        # print(memory)
         out = self.decoder(memory)
+        # print(out)
+        # print()
         return out
 
 def save_model(model, optim, type, val_losses, train_losses, epoch, count, file_name):

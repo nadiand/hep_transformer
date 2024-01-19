@@ -30,7 +30,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
     torch.set_grad_enabled(True)
     model.train()
     losses = 0.
-    for _, data in enumerate(train_loader):
+    for i, data in enumerate(train_loader):
         _, hits, track_params, _ = data
         optim.zero_grad()
 
@@ -44,7 +44,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
 
         # Make prediction
         with torch.cuda.amp.autocast():
-            pred = model(hits)
+            pred = model(hits, padding_mask)
             loss = loss_fn(pred, track_params)
         
         # Update loss and scaler
@@ -64,7 +64,7 @@ def evaluate(model, validation_loader, loss_fn):
     model.eval()
     losses = 0.
     with torch.no_grad():
-        for _, data in enumerate(valid_loader):
+        for i, data in enumerate(valid_loader):
             _, hits, track_params, _ = data
 
             # Make prediction
@@ -76,7 +76,7 @@ def evaluate(model, validation_loader, loss_fn):
             track_params = torch.unsqueeze(track_params[~padding_mask], 0)
             
             with torch.cuda.amp.autocast():
-                pred = model(hits)
+                pred = model(hits, padding_mask)
                 loss = loss_fn(pred, track_params)
 
             losses += loss.item()
@@ -106,7 +106,7 @@ def predict(model, test_loader):
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
         with torch.cuda.amp.autocast():
-            pred = model(hits)
+            pred = model(hits, padding_mask)
 
         cluster_labels = clustering(pred)
         event_score = calc_score_trackml(cluster_labels, track_labels)
@@ -121,6 +121,8 @@ if __name__ == "__main__":
     NUM_EPOCHS = 1
     EARLY_STOPPING = 50
     MODEL_NAME = "test"
+    BATCH_SIZE = 16
+    hits_per_event = 50
 
     torch.manual_seed(37)  # for reproducibility
 
