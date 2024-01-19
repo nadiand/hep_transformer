@@ -58,7 +58,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
             losses += avg_intermid_loss.item()
             intermid_loss = 0.
 
-    return losses / len(train_loader)
+    return losses / (len(train_loader)/BATCH_SIZE)
 
 def evaluate(model, validation_loader, loss_fn):
     '''
@@ -91,7 +91,7 @@ def evaluate(model, validation_loader, loss_fn):
                 losses += avg_intermid_loss.item()
                 intermid_loss = 0.
             
-    return losses / len(validation_loader)
+    return losses / (len(validation_loader)/BATCH_SIZE)
 
 def predict(model, test_loader):
     '''
