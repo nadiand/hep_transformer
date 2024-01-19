@@ -293,6 +293,10 @@ class MultiheadAttention(Module):
     
 
 class CausalSelfAttention(Module):
+    """
+    Taken and adapted from pytorch tutorial on SDPA: 
+    https://pytorch.org/tutorials/intermediate/scaled_dot_product_attention_tutorial.html#beta-implementing-high-performance-transformers-with-scaled-dot-product-attention-sdpa
+    """
 
     def __init__(self, num_heads: int, embed_dimension: int, bias: bool=False, is_causal: bool=False, dropout:float=0.0, batch_first: bool=True):
         super().__init__()
