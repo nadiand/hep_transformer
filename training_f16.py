@@ -81,7 +81,7 @@ def evaluate(model, validation_loader, loss_fn):
 
             losses += loss.item()
             
-    return losses / (len(validation_loader)/BATCH_SIZE)
+    return losses / len(validation_loader)
 
 def predict(model, test_loader):
     '''
