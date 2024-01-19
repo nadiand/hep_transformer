@@ -30,7 +30,8 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
     torch.set_grad_enabled(True)
     model.train()
     losses = 0.
-    for data in train_loader:
+    intermid_loss = 0.
+    for i, data in enumerate(train_loader):
         _, hits, track_params, _ = data
         optim.zero_grad()
 
@@ -44,11 +45,14 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
             pred = model(hits, padding_mask)
             loss = loss_fn(pred, track_params)
         
+        intermid_loss += loss.item()
         # Update loss and scaler
-        scaler.scale(loss).backward()
-        scaler.step(optim)
-        scaler.update()
-        losses += loss.item()
+        if i % BATCH_SIZE == 0:
+            scaler.scale(intermid_loss).backward()
+            scaler.step(optim)
+            scaler.update()
+            losses += intermid_loss
+            intermid_loss = 0.
 
     return losses / len(train_loader)
 
@@ -116,6 +120,7 @@ if __name__ == "__main__":
     NUM_EPOCHS = 1
     EARLY_STOPPING = 50
     MODEL_NAME = "test"
+    BATCH_SIZE = 16
     hits_per_event = 50
 
     torch.manual_seed(37)  # for reproducibility
@@ -127,7 +132,7 @@ if __name__ == "__main__":
                                                               train_frac=0.7,
                                                               valid_frac=0.15,
                                                               test_frac=0.15,
-                                                              batch_size=16)
+                                                              batch_size=1)
     print("data loaded")
 
     # Transformer model
