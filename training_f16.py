@@ -104,6 +104,7 @@ def predict(model, test_loader):
         # Make prediction
         hits = hits.to(DEVICE)
         track_params = track_params.to(DEVICE)
+        track_labels = track_labels.to(DEVICE)
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
 
         hits = torch.unsqueeze(hits[~padding_mask], 0)

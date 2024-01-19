@@ -28,14 +28,14 @@ class TransformerClassifier(nn.Module):
         self.decoder = nn.Linear(d_model, output_size)
 
     def forward(self, input, padding_mask):
-        print(input)
+        # print(input)
         x = self.input_layer(input)
-        print(x)
+        # print(x)
         memory = self.encoder(src=x, src_key_padding_mask=padding_mask)
-        print(memory)
+        # print(memory)
         out = self.decoder(memory)
-        print(out)
-        print()
+        # print(out)
+        # print()
         return out
 
 def save_model(model, optim, type, val_losses, train_losses, epoch, count, file_name):
