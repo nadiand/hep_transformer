@@ -93,13 +93,7 @@ class TransformerEncoderLayer(Module):
     # self-attention block
     def _sa_block(self, x: Tensor,
                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
-        # x = self.self_attn(x, x, x,
-        #                    attn_mask=attn_mask,
-        #                    key_padding_mask=key_padding_mask,
-        #                    need_weights=False, is_causal=is_causal)[0]
-        print(key_padding_mask)
-        print()
-        x = self.self_attn(x, attn_mask, key_padding_mask)
+        x = self.self_attn(x)
         return self.dropout1(x)
 
     # feed forward block
@@ -144,7 +138,7 @@ class CausalSelfAttention(Module):
 
         self.batch_first = batch_first
 
-    def forward(self, x, attn_mask, key_padding_mask):
+    def forward(self, x):
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
         query_projected = self.c_attn(x)
 
@@ -163,24 +157,6 @@ class CausalSelfAttention(Module):
         else:
             dropout = 0.0
             is_causal = False
-
-        # key_padding_mask = F._canonical_mask(
-        #     mask=key_padding_mask,
-        #     mask_name="key_padding_mask",
-        #     other_type=F._none_or_dtype(attn_mask),
-        #     other_name="attn_mask",
-        #     target_type=query.dtype
-        # )
-
-        # attn_mask = F._canonical_mask(
-        #     mask=attn_mask,
-        #     mask_name="attn_mask",
-        #     other_type=None,
-        #     other_name="",
-        #     target_type=query.dtype,
-        #     check_other=False,
-        # )
-        # merged_masks, _ = self.merge_masks(attn_mask=attn_mask, key_padding_mask=key_padding_mask, query=query)
 
         with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):
             y = F.scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=dropout, is_causal=is_causal)
