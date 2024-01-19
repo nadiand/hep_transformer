@@ -51,7 +51,6 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
         intermid_loss += loss
         # Update loss and scaler
         if i % BATCH_SIZE == 0:
-            print('here')
             scaler.scale(intermid_loss).backward()
             scaler.step(optim)
             scaler.update()
@@ -68,8 +67,9 @@ def evaluate(model, validation_loader, loss_fn):
     # Get the network in evaluation mode
     model.eval()
     losses = 0.
+    intermid_loss = 0.
     with torch.no_grad():
-        for data in valid_loader:
+        for i, data in enumerate(valid_loader):
             _, hits, track_params, _ = data
 
             # Make prediction
@@ -84,9 +84,11 @@ def evaluate(model, validation_loader, loss_fn):
                 pred = model(hits, padding_mask)
                 loss = loss_fn(pred, track_params)
 
-            losses += loss.item()
+            intermid_loss += loss
+            if i % BATCH_SIZE == 0:
+                losses += intermid_loss.item()
+                intermid_loss = 0.
             
-
     return losses / len(validation_loader)
 
 def predict(model, test_loader):
