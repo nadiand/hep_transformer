@@ -351,7 +351,7 @@ class CausalSelfAttention(Module):
             target_type=query.dtype,
             check_other=False,
         )
-        merged_masks = merge_masks(attn_mask, key_padding_mask)
+        merged_masks = merge_masks(attn_mask=attn_mask, key_padding_mask=key_padding_mask, query=query)
 
         with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):
             y = F.scaled_dot_product_attention(query, key, value, attn_mask=merged_masks, dropout_p=dropout, is_causal=is_causal)
