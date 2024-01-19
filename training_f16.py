@@ -45,13 +45,13 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
             pred = model(hits, padding_mask)
             loss = loss_fn(pred, track_params)
         
-        intermid_loss += loss.item()
+        intermid_loss += loss
         # Update loss and scaler
         if i % BATCH_SIZE == 0:
             scaler.scale(intermid_loss).backward()
             scaler.step(optim)
             scaler.update()
-            losses += intermid_loss
+            losses += intermid_loss.item()
             intermid_loss = 0.
 
     return losses / len(train_loader)
