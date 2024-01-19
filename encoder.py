@@ -9,7 +9,7 @@ from torch.nn.modules.linear import NonDynamicallyQuantizableLinear
 from torch.nn.init import constant_, xavier_normal_, xavier_uniform_
 
 # from flash_attn.flash_attention import FlashMHA
-from flash_attn.flash_attn_interface import flash_attn_qkvpacked_func, flash_attn_func
+# from flash_attn.flash_attn_interface import flash_attn_qkvpacked_func, flash_attn_func
 # from FlashMHA import FlashMHA
 
 
@@ -22,7 +22,8 @@ class TransformerEncoderLayer(Module):
                  device=None, dtype=None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.self_attn = FlashMHA(d_model, nhead, attention_dropout=dropout, batch_first=batch_first, **factory_kwargs)
+        # self.self_attn = FlashMHA(d_model, nhead, attention_dropout=dropout, batch_first=batch_first, **factory_kwargs)
+        self.self_attn = CausalSelfAttention(num_heads=nhead, embed_dimension=d_model, bias=False, is_causal=True, dropout=dropout)
         # Implementation of Feedforward model
         self.linear1 = Linear(d_model, dim_feedforward, **factory_kwargs)
         self.dropout = Dropout(dropout)
@@ -288,3 +289,47 @@ class MultiheadAttention(Module):
 
         # no attn_mask and no key_padding_mask, returns None, None
         return merged_mask, mask_type
+    
+
+class CausalSelfAttention(Module):
+
+    def __init__(self, num_heads: int, embed_dimension: int, bias: bool=False, is_causal: bool=False, dropout:float=0.0):
+        super().__init__()
+        assert embed_dimension % num_heads == 0
+        # key, query, value projections for all heads, but in a batch
+        self.c_attn = Linear(embed_dimension, 3 * embed_dimension, bias=bias)
+        # output projection
+        self.c_proj = Linear(embed_dimension, embed_dimension, bias=bias)
+        # regularization
+        self.dropout = dropout
+        self.resid_dropout = Dropout(dropout)
+        self.num_heads = num_heads
+        self.embed_dimension = embed_dimension
+        # Perform causal masking
+        self.is_causal = is_causal
+
+    def forward(self, x):
+        # calculate query, key, values for all heads in batch and move head forward to be the batch dim
+        query_projected = self.c_attn(x)
+
+        batch_size = query_projected.size(0)
+        embed_dim = query_projected.size(2)
+        head_dim = embed_dim // (self.num_heads * 3)
+
+        query, key, value = query_projected.chunk(3, -1)
+        query = query.view(batch_size, -1, self.num_heads, head_dim).transpose(1, 2)
+        key = key.view(batch_size, -1, self.num_heads, head_dim).transpose(1, 2)
+        value = value.view(batch_size, -1, self.num_heads, head_dim).transpose(1, 2)
+
+        if self.training:
+            dropout = self.dropout
+            is_causal = self.is_causal
+        else:
+            dropout = 0.0
+            is_causal = False
+
+        y = F.scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=dropout, is_causal=is_causal)
+        y = y.transpose(1, 2).view(batch_size, -1, self.num_heads * head_dim)
+
+        y = self.resid_dropout(self.c_proj(y))
+        return y
