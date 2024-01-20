@@ -135,7 +135,7 @@ if __name__ == "__main__":
 
     # Transformer model
     transformer = TransformerClassifier(num_encoder_layers=6,
-                                        d_model=32,
+                                        d_model=64,
                                         n_head=8,
                                         input_size=3,
                                         output_size=3,
