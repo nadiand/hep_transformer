@@ -7,6 +7,7 @@ from hdbscan import HDBSCAN
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
 from scoring import calc_score
+from trackml_data import load_trackml_data
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -106,21 +107,20 @@ def predict(model, test_loader):
     return predictions, score/len(test_loader)
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 1
-    EARLY_STOPPING = 50
-    MODEL_NAME = "test"
-    max_nr_hits = 800
+    NUM_EPOCHS = 1000
+    EARLY_STOPPING = 200
+    MODEL_NAME = "50tracks_main"
 
     torch.manual_seed(37)  # for reproducibility
 
     # Load and split dataset into training, validation and test sets, and get dataloaders
-    hits_data, track_params_data, track_classes_data = load_curved_3d_data(data_path="hits_and_tracks_3d_3curved_events_all.csv", max_num_hits=max_nr_hits)
+    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_50tracks.csv", normalize=True)
     dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
     train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,
                                                               valid_frac=0.15,
                                                               test_frac=0.15,
-                                                              batch_size=2)
+                                                              batch_size=64)
     print("data loaded")
 
     # Transformer model
@@ -166,5 +166,5 @@ if __name__ == "__main__":
             print("Early stopping...")
             break
 
-    preds, score = predict(transformer, test_loader)
-    print(score)
+    # preds, score = predict(transformer, test_loader)
+    # print(score)
