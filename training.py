@@ -34,7 +34,7 @@ def train_epoch(model, optim, train_loader, loss_fn):
     model.train()
     losses = 0.
     for data in train_loader:
-        _, hits, track_params, _ = data
+        hits, track_params = data
         optim.zero_grad()
 
         # Make prediction
