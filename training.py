@@ -108,7 +108,7 @@ def predict(model, test_loader):
     return predictions, score/len(test_loader)
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 1
+    NUM_EPOCHS = 10
     EARLY_STOPPING = 50
     MODEL_NAME = "test"
     max_nr_hits = 800
@@ -151,7 +151,9 @@ if __name__ == "__main__":
     min_val_loss = np.inf
     count = 0
 
-    train_epoch(transformer, optimizer, my_dataloader, loss_fn)
+    for epoch in range(NUM_EPOCHS):
+        train_loss = train_epoch(transformer, optimizer, my_dataloader, loss_fn)
+        print(train_loss)
 
     # for epoch in range(NUM_EPOCHS):
     #     # Train the model
@@ -176,5 +178,5 @@ if __name__ == "__main__":
     #         print("Early stopping...")
     #         break
 
-    # preds, score = predict(transformer, test_loader)
-    # print(score)
+    preds, score = predict(transformer, my_dataloader)
+    print(score)
