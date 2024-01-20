@@ -23,7 +23,7 @@ def clustering(pred_params):
     cluster_labels = [torch.from_numpy(cl_lbl).int() for cl_lbl in cluster_labels]
     return cluster_labels
 
-def train_epoch(model, optim, train_loader, loss_fn):
+def train_epoch(model, optim, train_loader, loss_fn, scaler):
     '''
     Conducts a single epoch of training: prediction, loss calculation, and loss
     backpropagation. Returns the average loss over the whole train data.
@@ -40,11 +40,13 @@ def train_epoch(model, optim, train_loader, loss_fn):
         hits = hits.to(DEVICE)
         track_params = track_params.to(DEVICE)
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
-        pred = model(hits, padding_mask)
-        # Calculate loss and use it to update weights
-        loss = loss_fn(pred, track_params)
-        loss.backward()
-        optim.step()
+        with torch.cuda.amp.autocast():
+            pred = model(hits, padding_mask)
+            # Calculate loss and use it to update weights
+            loss = loss_fn(pred, track_params)
+        scaler.scale(loss).backward()
+        scaler.step(optim)
+        scaler.update()
         losses += loss.item()
 
     return losses / len(train_loader)
@@ -145,6 +147,7 @@ if __name__ == "__main__":
 
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
+    scaler = torch.cuda.amp.GradScaler()
 
     # Training
     train_losses, val_losses = [], []
@@ -152,7 +155,7 @@ if __name__ == "__main__":
     count = 0
 
     for epoch in range(NUM_EPOCHS):
-        train_loss = train_epoch(transformer, optimizer, my_dataloader, loss_fn)
+        train_loss = train_epoch(transformer, optimizer, my_dataloader, loss_fn, scaler)
         print(train_loss)
 
     # for epoch in range(NUM_EPOCHS):
