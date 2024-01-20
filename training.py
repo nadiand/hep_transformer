@@ -95,6 +95,7 @@ def predict(model, test_loader):
         
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         pred = model(hits, padding_mask)
+        print(pred)
         track_params = track_params[:, :pred.shape[1] ,:]
         track_labels = track_labels[:, :pred.shape[1]]
         hits = hits[:, :pred.shape[1], :]
