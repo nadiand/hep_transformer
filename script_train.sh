@@ -17,4 +17,4 @@ pip install torch==2.1.0
 pip install scikit-learn
 pip install pandas
 
-python training_f16.py
+python training.py
