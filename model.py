@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-# from encoder import *
+from encoder import *
 
 PAD_TOKEN = -1
 
@@ -22,7 +22,7 @@ class TransformerClassifier(nn.Module):
     def __init__(self, num_encoder_layers, d_model, n_head, input_size, output_size, dim_feedforward, dropout):
         super(TransformerClassifier, self).__init__()
         self.input_layer = nn.Linear(input_size, d_model)
-        encoder_layers = nn.TransformerEncoderLayer(d_model, n_head, dim_feedforward, dropout, batch_first=True)
+        encoder_layers = TransformerEncoderLayer(d_model, n_head, dim_feedforward, dropout, batch_first=True)
         self.encoder = nn.TransformerEncoder(encoder_layers, num_encoder_layers)
         self.decoder = nn.Linear(d_model, output_size)
 
