@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 
+# from encoder import *
+
 PAD_TOKEN = -1
 
 class AngleDifferenceLoss(nn.Module):
