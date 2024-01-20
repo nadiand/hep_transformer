@@ -118,7 +118,7 @@ class CausalSelfAttention(Module):
         self.dropout = dropout
         self.num_heads = num_heads
         self.embed_dimension = embed_dimension
-        self.head_dim = self.embed_dimension / self.num_heads
+        self.head_dim = self.embed_dimension // self.num_heads
         # Perform causal masking
         self.is_causal = is_causal
 
