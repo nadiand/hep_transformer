@@ -89,7 +89,7 @@ class TransformerEncoderLayer(Module):
                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
         x, _ = self.self_attn(x, x, x)
         print(x)
-        print(x.dtype)
+        print(x.shape)
         print()
         return self.dropout1(x)
 
