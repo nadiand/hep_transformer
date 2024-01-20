@@ -14,7 +14,7 @@ class TransformerEncoderLayer(Module):
                  device=None, dtype=None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.self_attn = CausalSelfAttention(num_heads=nhead, embed_dimension=d_model, bias=False, is_causal=True, dropout=dropout)
+        self.self_attn = FlashSelfAttention(num_heads=nhead, embed_dimension=d_model, bias=False, is_causal=True, dropout=dropout)
         # Implementation of Feedforward model
         self.linear1 = Linear(d_model, dim_feedforward, **factory_kwargs)
         self.dropout = Dropout(dropout)
@@ -70,7 +70,6 @@ class TransformerEncoderLayer(Module):
             check_other=False,
         )
 
-
         x = src
         if self.norm_first:
             x = x + self._sa_block(self.norm1(x), src_mask, src_key_padding_mask, is_causal=is_causal)
@@ -101,7 +100,7 @@ def _get_activation_fn(activation: str) -> Callable[[Tensor], Tensor]:
     raise RuntimeError("activation should be relu/gelu, not {}".format(activation))
 
 
-class CausalSelfAttention(Module):
+class FlashSelfAttention(Module):
     """
     Taken and adapted from pytorch tutorial on SDPA: 
     https://pytorch.org/tutorials/intermediate/scaled_dot_product_attention_tutorial.html#beta-implementing-high-performance-transformers-with-scaled-dot-product-attention-sdpa
@@ -110,24 +109,15 @@ class CausalSelfAttention(Module):
     def __init__(self, num_heads: int, embed_dimension: int, bias: bool=False, is_causal: bool=False, dropout:float=0.0, batch_first: bool=True):
         super().__init__()
         assert embed_dimension % num_heads == 0
-        # key, query, value projections for all heads, but in a batch
-        # self.c_attn = Linear(embed_dimension, 3 * embed_dimension, bias=bias)
-        # output projection
-        # self.c_proj = Linear(embed_dimension, embed_dimension, bias=bias)
-        # regularization
         self.dropout = dropout
         self.num_heads = num_heads
         self.embed_dimension = embed_dimension
         self.head_dim = self.embed_dimension // self.num_heads
-        # Perform causal masking
         self.is_causal = is_causal
 
         self.batch_first = batch_first
 
     def forward(self, key, query, value):
-        # calculate query, key, values for all heads in batch and move head forward to be the batch dim
-        # query_projected = self.c_attn(x)
-
         batch_size = query.size(0)
 
         query = query.view(batch_size, -1, self.num_heads, self.head_dim).transpose(1, 2)
@@ -146,7 +136,6 @@ class CausalSelfAttention(Module):
         
         y = y.transpose(1, 2).view(batch_size, -1, self.num_heads * self.head_dim)
 
-        # y = self.c_proj(y)
         return y
 
 # class MultiheadAttention(Module):
