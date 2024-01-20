@@ -94,6 +94,7 @@ def predict(model, test_loader):
         
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         pred = model(hits, padding_mask)
+        print(pred)
         track_params = track_params[:, :pred.shape[1] ,:]
         track_labels = track_labels[:, :pred.shape[1]]
         hits = hits[:, :pred.shape[1], :]
@@ -117,17 +118,17 @@ if __name__ == "__main__":
     torch.manual_seed(37)  # for reproducibility
 
     # Load and split dataset into training, validation and test sets, and get dataloaders
-    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_50tracks.csv") #, max_num_hits=max_nr_hits)
-    dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
-    train_loader, valid_loader, test_loader = get_dataloaders(dataset,
-                                                              train_frac=0.7,
-                                                              valid_frac=0.15,
-                                                              test_frac=0.15,
-                                                              batch_size=1)
+    # hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_50tracks.csv") #, max_num_hits=max_nr_hits)
+    # dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
+    # train_loader, valid_loader, test_loader = get_dataloaders(dataset,
+    #                                                           train_frac=0.7,
+    #                                                           valid_frac=0.15,
+    #                                                           test_frac=0.15,
+    #                                                           batch_size=1)
     print("data loaded")
 
     my_x = torch.Tensor([np.array([[1.0,2.15, 0.56],[3.1,4.67, 1.5]]),np.array([[5.,6.12,2.36],[1.24,0.76,5.23]])])
-    my_y = torch.Tensor([np.array([2.]), np.array([2.])])
+    my_y = torch.Tensor([np.array([2.,2.,2.]), np.array([2.,2.,2.])])
 
     my_dataset = TensorDataset(my_x,my_y)
     my_dataloader = DataLoader(my_dataset)
