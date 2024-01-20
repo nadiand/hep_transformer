@@ -118,16 +118,16 @@ def predict(model, test_loader):
     return predictions, score/len(test_loader)
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 1
+    NUM_EPOCHS = 100
     EARLY_STOPPING = 50
-    MODEL_NAME = "test"
+    MODEL_NAME = "50tracks_biastrue"
     BATCH_SIZE = 16
     hits_per_event = 50
 
     torch.manual_seed(37)  # for reproducibility
 
     # Load and split dataset into training, validation and test sets, and get dataloaders
-    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_700tracks.csv", normalize=True)
+    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_50tracks.csv", normalize=True)
     dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
     train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,

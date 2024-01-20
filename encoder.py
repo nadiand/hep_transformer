@@ -16,7 +16,7 @@ class TransformerEncoderLayer(Module):
                  device=None, dtype=None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.self_attn = FlashSelfAttention(num_heads=nhead, embed_dimension=d_model, bias=False, is_causal=True, dropout=dropout)
+        self.self_attn = FlashSelfAttention(num_heads=nhead, embed_dimension=d_model, bias=True, is_causal=True, dropout=dropout)
         # Implementation of Feedforward model
         self.linear1 = Linear(d_model, dim_feedforward, **factory_kwargs)
         self.dropout = Dropout(dropout)

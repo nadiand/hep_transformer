@@ -24,4 +24,4 @@ python -m pip install pandas
 # python -m pip install ninja
 # python -m pip install flash-attn --no-build-isolation
 
-python training.py
+python training_f16.py
