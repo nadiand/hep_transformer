@@ -118,6 +118,7 @@ class CausalSelfAttention(Module):
         self.dropout = dropout
         self.num_heads = num_heads
         self.embed_dimension = embed_dimension
+        self.head_dim = self.embed_dimension / self.num_heads
         # Perform causal masking
         self.is_causal = is_causal
 
@@ -128,12 +129,10 @@ class CausalSelfAttention(Module):
         # query_projected = self.c_attn(x)
 
         batch_size = query.size(0)
-        embed_dim = self.embed_dimension
-        head_dim = embed_dim // (self.num_heads * 3)
 
-        query = query.view(batch_size, -1, self.num_heads, head_dim).transpose(1, 2)
-        key = key.view(batch_size, -1, self.num_heads, head_dim).transpose(1, 2)
-        value = value.view(batch_size, -1, self.num_heads, head_dim).transpose(1, 2)
+        query = query.view(batch_size, -1, self.num_heads, self.head_dim).transpose(1, 2)
+        key = key.view(batch_size, -1, self.num_heads, self.head_dim).transpose(1, 2)
+        value = value.view(batch_size, -1, self.num_heads, self.head_dim).transpose(1, 2)
 
         if self.training:
             dropout = self.dropout
