@@ -86,7 +86,7 @@ def predict(model, test_loader):
     predictions = {}
     score = 0.
     for data in test_loader:
-        event_id, hits, track_params, track_labels = data
+        hits, track_params = data
 
         # Make prediction
         hits = hits.to(DEVICE)

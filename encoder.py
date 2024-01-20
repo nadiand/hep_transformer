@@ -88,9 +88,9 @@ class TransformerEncoderLayer(Module):
     def _sa_block(self, x: Tensor,
                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
         x, _ = self.self_attn(x, x, x)
-        print(x)
-        print(x.shape)
-        print()
+        # print(x)
+        # print(x.shape)
+        # print()
         return self.dropout1(x)
 
     # feed forward block
