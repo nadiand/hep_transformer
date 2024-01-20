@@ -144,7 +144,7 @@ def transform_trackml_data(event_id, split=False):
 
 
 def load_trackml_data(data_path, normalize=False):
-    data = pd.read_csv(data_path)
+    data = pd.read_csv(data_path).head(500*10)
     # Find the max number of hits in the batch to pad up to
     # events = data['event_class'].unique()
     # event_lens = [len(data[data['event_class'] == event]) for event in events]
