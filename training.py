@@ -33,7 +33,7 @@ def train_epoch(model, optim, train_loader, loss_fn):
     model.train()
     losses = 0.
     for data in train_loader:
-        _, hits, track_params, _ = data
+        hits, track_params = data
         optim.zero_grad()
 
         # Make prediction
@@ -85,7 +85,7 @@ def predict(model, test_loader):
     predictions = {}
     score = 0.
     for data in test_loader:
-        event_id, hits, track_params, track_labels = data
+        hits, track_params = data
 
         # Make prediction
         hits = hits.to(DEVICE)
@@ -101,13 +101,14 @@ def predict(model, test_loader):
         event_score = calc_score(cluster_labels, track_labels)
         score += event_score
 
-        for _, e_id in enumerate(event_id):
-            predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
+        predictions = None
+        # for _, e_id in enumerate(event_id):
+        #     predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
 
     return predictions, score/len(test_loader)
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 10
+    NUM_EPOCHS = 1
     EARLY_STOPPING = 50
     MODEL_NAME = "test"
     max_nr_hits = 800
