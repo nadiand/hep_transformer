@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 from hdbscan import HDBSCAN
+from torch.utils.data import TensorDataset, DataLoader
 
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
@@ -124,6 +125,12 @@ if __name__ == "__main__":
                                                               batch_size=1)
     print("data loaded")
 
+    my_x = torch.Tensor([np.array([[1.0,2.15, 0.56],[3.1,4.67, 1.5]]),np.array([[5.,6.12,2.36],[1.24,0.76,5.23]])])
+    my_y = torch.Tensor([np.array([2.]), np.array([2.])])
+
+    my_dataset = TensorDataset(my_x,my_y)
+    my_dataloader = DataLoader(my_dataset)
+
     # Transformer model
     transformer = TransformerClassifier(num_encoder_layers=6,
                                         d_model=32,
@@ -144,28 +151,30 @@ if __name__ == "__main__":
     min_val_loss = np.inf
     count = 0
 
-    for epoch in range(NUM_EPOCHS):
-        # Train the model
-        train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn)
-        val_loss = evaluate(transformer, valid_loader, loss_fn)
-        print(f"Epoch: {epoch}\nVal loss: {val_loss:.8f}, Train loss: {train_loss:.8f}")
+    train_epoch(transformer, optimizer, my_dataloader, loss_fn)
 
-        train_losses.append(train_loss)
-        val_losses.append(val_loss)
+    # for epoch in range(NUM_EPOCHS):
+    #     # Train the model
+    #     train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn)
+    #     val_loss = evaluate(transformer, valid_loader, loss_fn)
+    #     print(f"Epoch: {epoch}\nVal loss: {val_loss:.8f}, Train loss: {train_loss:.8f}")
 
-        if val_loss < min_val_loss:
-            # If the model has a new best validation loss, save it as "the best"
-            min_val_loss = val_loss
-            save_model(transformer, optimizer, "best", val_losses, train_losses, epoch, count, MODEL_NAME)
-            count = 0
-        else:
-            # If the model's validation loss isn't better than the best, save it as "the last"
-            save_model(transformer, optimizer, "last", val_losses, train_losses, epoch, count, MODEL_NAME)
-            count += 1
+    #     train_losses.append(train_loss)
+    #     val_losses.append(val_loss)
 
-        if count >= EARLY_STOPPING:
-            print("Early stopping...")
-            break
+    #     if val_loss < min_val_loss:
+    #         # If the model has a new best validation loss, save it as "the best"
+    #         min_val_loss = val_loss
+    #         save_model(transformer, optimizer, "best", val_losses, train_losses, epoch, count, MODEL_NAME)
+    #         count = 0
+    #     else:
+    #         # If the model's validation loss isn't better than the best, save it as "the last"
+    #         save_model(transformer, optimizer, "last", val_losses, train_losses, epoch, count, MODEL_NAME)
+    #         count += 1
 
-    preds, score = predict(transformer, test_loader)
-    print(score)
+    #     if count >= EARLY_STOPPING:
+    #         print("Early stopping...")
+    #         break
+
+    # preds, score = predict(transformer, test_loader)
+    # print(score)
