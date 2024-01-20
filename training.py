@@ -102,8 +102,9 @@ def predict(model, test_loader):
         event_score = calc_score(cluster_labels, track_labels)
         score += event_score
 
-        for _, e_id in enumerate(event_id):
-            predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
+        prediction = None
+        # for _, e_id in enumerate(event_id):
+        #     predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
 
     return predictions, score/len(test_loader)
 
