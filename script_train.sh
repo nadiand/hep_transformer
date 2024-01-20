@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=train          # Job name
 #SBATCH --ntasks=1                    # Run on a single GPU
-#SBATCH --time=00:30:00               # Time limit hrs:min:sec
+#SBATCH --time=24:30:00               # Time limit hrs:min:sec
 #SBATCH --partition=gpu
 #SBATCH --gpus-per-node=1
 #SBATCH --mail-type=BEGIN,END
