@@ -7,7 +7,7 @@ from torch.utils.data import TensorDataset, DataLoader
 
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
-from scoring import calc_score
+from scoring import calc_score, calc_score_trackml
 from trackml_data import load_trackml_data
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -86,7 +86,7 @@ def predict(model, test_loader):
     predictions = {}
     score = 0.
     for data in test_loader:
-        _, hits, track_params, _ = data
+        _, hits, track_params, track_labels = data
 
         # Make prediction
         hits = hits.to(DEVICE)
@@ -100,7 +100,7 @@ def predict(model, test_loader):
         hits = hits[:, :pred.shape[1], :]
 
         cluster_labels = clustering(pred)
-        event_score = calc_score(cluster_labels, track_labels)
+        event_score = calc_score_trackml(cluster_labels, track_labels)
         score += event_score
 
         prediction = None
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     torch.manual_seed(37)  # for reproducibility
 
     # Load and split dataset into training, validation and test sets, and get dataloaders
-    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_50tracks.csv") #, max_num_hits=max_nr_hits)
+    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="trackml_data_50tracks.csv") #, max_num_hits=max_nr_hits)
     dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
     train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,

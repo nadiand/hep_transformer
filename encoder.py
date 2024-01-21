@@ -85,7 +85,7 @@ class TransformerEncoderLayer(Module):
     # self-attention block
     def _sa_block(self, x: Tensor,
                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
-        x, _ = self.self_attn(x, x, x)
+        x, _ = self.self_attn(x, x, x, key_padding_mask=key_padding_mask, attn_mask=attn_mask)
         # print(x)
         # print(x.shape)
         # print()
