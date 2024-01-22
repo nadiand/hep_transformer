@@ -138,3 +138,23 @@ def plot_results(hits, pred_cluster, true_cluster):
     ax.set_zlabel('Z')
 
     plt.show()
+
+def plot_heatmap(parameters, param, name):
+    plt.figure()
+    param_names = {"theta":0, "phi":1, "q":2}
+    all_pred, all_true = [], []
+    for event_parameters in parameters:
+        predicted, true = event_parameters[1][0][:, param_names[param]], event_parameters[2][0][:, param_names[param]]
+        all_pred.append(predicted.cpu().tolist())
+        all_true.append(true.cpu().tolist())
+    all_pred_flattened = [item for sublist in all_pred for item in sublist]
+    all_true_flattened = [item for sublist in all_true for item in sublist]
+
+    heatmap, xedges, yedges = np.histogram2d(all_pred_flattened, all_true_flattened, bins=100)
+    extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+    plt.clf()
+    plt.imshow(heatmap.T, extent=extent, origin='lower') #, vmax=heatmap.mean())
+    plt.xlabel("Predicted")
+    plt.ylabel("True")
+    plt.title(f"Regressed {param} vs ground truth")
+    plt.savefig(f"../{param}_heatmap_{name}.png")

@@ -7,6 +7,7 @@ from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders
 from scoring import calc_score_trackml
 from trackml_data import load_trackml_data
+from plotting import *
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -45,6 +46,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
         # Make prediction
         with torch.cuda.amp.autocast():
             pred = model(hits, padding_mask)
+            pred = torch.unsqueeze(pred[~padding_mask], 0)
             loss = loss_fn(pred, track_params)
         
         # Update loss and scaler
@@ -77,6 +79,7 @@ def evaluate(model, validation_loader, loss_fn):
             
             with torch.cuda.amp.autocast():
                 pred = model(hits, padding_mask)
+                pred = torch.unsqueeze(pred[~padding_mask], 0)
                 loss = loss_fn(pred, track_params)
 
             losses += loss.item()
@@ -108,6 +111,7 @@ def predict(model, test_loader):
         with torch.cuda.amp.autocast():
             pred = model(hits, padding_mask)
 
+        pred = torch.unsqueeze(pred[~padding_mask], 0)
         cluster_labels = clustering(pred)
         event_score = calc_score_trackml(cluster_labels, track_labels)
         score += event_score
@@ -118,7 +122,7 @@ def predict(model, test_loader):
     return predictions, score/len(test_loader)
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 100
+    NUM_EPOCHS = 50
     EARLY_STOPPING = 50
     MODEL_NAME = "50tracks_biastrue"
     BATCH_SIZE = 16
@@ -182,3 +186,6 @@ if __name__ == "__main__":
 
     preds, score = predict(transformer, test_loader)
     print(score)
+    preds = list(preds.values())
+    for param in ["theta", "phi", "q"]:
+        plot_heatmap(preds, param, "train")	

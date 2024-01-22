@@ -18,10 +18,5 @@ python -m pip install torch==2.1.2
 python -m pip install scikit-learn
 python -m pip install pandas
 
-# python -m pip install FlashMHA
-
-# python -m pip install packaging
-# python -m pip install ninja
-# python -m pip install flash-attn --no-build-isolation
 
 python training_f16.py
