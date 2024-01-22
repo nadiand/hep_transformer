@@ -20,7 +20,7 @@ transformer.load_state_dict(checkpoint['model_state_dict'])
 pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
 print("Total trainable params: {}".format(pytorch_total_params))
 
-hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="trackml_data_50tracks.csv")
+hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="trackml_data_50tracks.csv", normalize=True)
 dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
 train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,
@@ -32,5 +32,5 @@ print('data loaded')
 preds, score = predict(transformer, test_loader)
 print(score)
 preds = list(preds.values())
-for param in ["theta", "phi", "q"]:
-    plot_heatmap(preds, param, "test")
+# for param in ["theta", "phi", "q"]:
+#     plot_heatmap(preds, param, "test")
