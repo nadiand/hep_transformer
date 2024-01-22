@@ -46,7 +46,6 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
         # Make prediction
         with torch.cuda.amp.autocast():
             pred = model(hits, padding_mask)
-            pred = torch.unsqueeze(pred[~padding_mask], 0)
             loss = loss_fn(pred, track_params)
         
         # Update loss and scaler
@@ -79,7 +78,6 @@ def evaluate(model, validation_loader, loss_fn):
             
             with torch.cuda.amp.autocast():
                 pred = model(hits, padding_mask)
-                pred = torch.unsqueeze(pred[~padding_mask], 0)
                 loss = loss_fn(pred, track_params)
 
             losses += loss.item()
@@ -124,7 +122,7 @@ def predict(model, test_loader):
 if __name__ == "__main__":
     NUM_EPOCHS = 50
     EARLY_STOPPING = 50
-    MODEL_NAME = "50tracks_biastrue"
+    MODEL_NAME = "flash"
     BATCH_SIZE = 16
     hits_per_event = 50
 
