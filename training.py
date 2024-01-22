@@ -166,5 +166,5 @@ if __name__ == "__main__":
             print("Early stopping...")
             break
 
-    # preds, score = predict(transformer, test_loader)
-    # print(score)
+    preds, score = predict(transformer, test_loader)
+    print(score)
