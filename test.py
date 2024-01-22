@@ -31,3 +31,6 @@ print('data loaded')
 
 preds, score = predict(transformer, test_loader)
 print(score)
+preds = list(preds.values())
+for param in ["theta", "phi", "q"]:
+    plot_heatmap(preds, param, "test")
