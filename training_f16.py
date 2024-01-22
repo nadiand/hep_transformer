@@ -109,7 +109,6 @@ def predict(model, test_loader):
         with torch.cuda.amp.autocast():
             pred = model(hits, padding_mask)
 
-        pred = torch.unsqueeze(pred[~padding_mask], 0)
         cluster_labels = clustering(pred)
         event_score = calc_score_trackml(cluster_labels, track_labels)
         score += event_score
@@ -163,7 +162,7 @@ if __name__ == "__main__":
         # Train the model
         train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn, scaler)
         val_loss = evaluate(transformer, valid_loader, loss_fn)
-        print(f"Epoch: {epoch}\nVal loss: {val_loss:.8f}, Train loss: {train_loss:.8f}")
+        print(f"Epoch: {epoch}\nVal loss: {val_loss:.8f}, Train loss: {train_loss:.8f}", flush=True)
 
         train_losses.append(train_loss)
         val_losses.append(val_loss)
