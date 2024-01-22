@@ -160,8 +160,8 @@ def load_trackml_data(data_path, normalize=False):
             data[col] = (data[col] - mean)/std
 
     # Shuffling the data and grouping by event ID
-    data = data.sample(frac=1)
-    data_grouped_by_event = data.groupby("event_id")
+    shuffled_data = data.sample(frac=1)
+    data_grouped_by_event = shuffled_data.groupby("event_id")
     # data_grouped_by_event = data.groupby("event_class")
 
     def extract_hits_data(event_rows):
