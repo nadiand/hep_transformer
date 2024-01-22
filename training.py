@@ -41,6 +41,10 @@ def train_epoch(model, optim, train_loader, loss_fn):
         track_params = track_params.to(DEVICE)
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         pred = model(hits, padding_mask)
+
+        pred = torch.unsqueeze(pred[~padding_mask], 0)
+        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
+
         # Calculate loss and use it to update weights
         loss = loss_fn(pred, track_params)
         loss.backward()
@@ -67,7 +71,9 @@ def evaluate(model, validation_loader, loss_fn):
             
             padding_mask = (hits == PAD_TOKEN).all(dim=2)
             pred = model(hits, padding_mask)
-            track_params = track_params[:, :pred.shape[1] ,:] 
+
+            pred = torch.unsqueeze(pred[~padding_mask], 0)
+            track_params = torch.unsqueeze(track_params[~padding_mask], 0)
 
             # Calculate loss and use it to update weights
             loss = loss_fn(pred, track_params)
@@ -90,12 +96,14 @@ def predict(model, test_loader):
         # Make prediction
         hits = hits.to(DEVICE)
         track_params = track_params.to(DEVICE)
+        track_labels = track_labels.to(DEVICE)
         
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         pred = model(hits, padding_mask)
-        track_params = track_params[:, :pred.shape[1] ,:]
-        track_labels = track_labels[:, :pred.shape[1]]
-        hits = hits[:, :pred.shape[1], :]
+
+        pred = torch.unsqueeze(pred[~padding_mask], 0)
+        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
+        track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
         cluster_labels = clustering(pred)
         event_score = calc_score_trackml(cluster_labels, track_labels)
@@ -107,7 +115,7 @@ def predict(model, test_loader):
     return predictions, score/len(test_loader)
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 1000
+    NUM_EPOCHS = 50
     EARLY_STOPPING = 200
     MODEL_NAME = "50tracks_main"
 
