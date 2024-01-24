@@ -3,9 +3,6 @@ import torch
 from torch.nn import Module, Linear, LayerNorm, Dropout
 from torch import Tensor
 import torch.nn.functional as F
-from torch.nn.modules.linear import NonDynamicallyQuantizableLinear
-from torch.nn.init import constant_, xavier_normal_, xavier_uniform_
-from torch.nn.parameter import Parameter
 
 class TransformerEncoderLayer(Module):
     __constants__ = ['batch_first', 'norm_first']
@@ -16,7 +13,8 @@ class TransformerEncoderLayer(Module):
                  device=None, dtype=None) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
-        self.self_attn = FlashSelfAttention(num_heads=nhead, embed_dimension=d_model, bias=True, is_causal=True, dropout=dropout)
+        self.self_attn = CausalSelfAttention(nhead, d_model, bias=True, batch_first=batch_first, dropout=dropout)
+        #self.self_attn = FlashSelfAttention(num_heads=nhead, embed_dimension=d_model, bias=True, is_causal=True, dropout=dropout)
         # Implementation of Feedforward model
         self.linear1 = Linear(d_model, dim_feedforward, **factory_kwargs)
         self.dropout = Dropout(dropout)
@@ -85,7 +83,7 @@ class TransformerEncoderLayer(Module):
     # self-attention block
     def _sa_block(self, x: Tensor,
                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
-        x = self.self_attn(x, x, x)
+        x = self.self_attn(x) #, x, x)
         return self.dropout1(x)
 
     # feed forward block
@@ -103,10 +101,6 @@ def _get_activation_fn(activation: str) -> Callable[[Tensor], Tensor]:
 
 
 class FlashSelfAttention(Module):
-    """
-    Taken and adapted from pytorch tutorial on SDPA: 
-    https://pytorch.org/tutorials/intermediate/scaled_dot_product_attention_tutorial.html#beta-implementing-high-performance-transformers-with-scaled-dot-product-attention-sdpa
-    """
 
     def __init__(self, num_heads: int, embed_dimension: int, bias: bool=False, is_causal: bool=False, dropout:float=0.0, batch_first: bool=True):
         super().__init__()
@@ -139,117 +133,51 @@ class FlashSelfAttention(Module):
         y = y.transpose(1, 2).view(batch_size, -1, self.num_heads * self.head_dim)
 
         return y
-
-class MultiheadAttention(Module):
     
-    __constants__ = ['batch_first']
-    bias_k: Optional[torch.Tensor]
-    bias_v: Optional[torch.Tensor]
+class CausalSelfAttention(Module):
+    """
+    Taken and adapted from pytorch tutorial on SDPA: 
+    https://pytorch.org/tutorials/intermediate/scaled_dot_product_attention_tutorial.html#beta-implementing-high-performance-transformers-with-scaled-dot-product-attention-sdpa
+    """
 
-    def __init__(self, embed_dim, num_heads, dropout=0., bias=True, add_bias_kv=False, add_zero_attn=False,
-                 kdim=None, vdim=None, batch_first=False, device=None, dtype=None) -> None:
-        if embed_dim <= 0 or num_heads <= 0:
-            raise ValueError(
-                f"embed_dim and num_heads must be greater than 0,"
-                f" got embed_dim={embed_dim} and num_heads={num_heads} instead"
-            )
-        factory_kwargs = {'device': device, 'dtype': dtype}
+    def __init__(self, num_heads: int, embed_dimension: int, bias: bool=False, is_causal: bool=False, batch_first: bool=True, dropout: float=0.0):
         super().__init__()
-        self.embed_dim = embed_dim
-        self.kdim = kdim if kdim is not None else embed_dim
-        self.vdim = vdim if vdim is not None else embed_dim
-        self._qkv_same_embed_dim = self.kdim == embed_dim and self.vdim == embed_dim
-
+        assert embed_dimension % num_heads == 0
+        # key, query, value projections for all heads, but in a batch
+        self.c_attn = Linear(embed_dimension, 3 * embed_dimension, bias=bias)
+        # output projection
+        self.c_proj = Linear(embed_dimension, embed_dimension, bias=bias)
+        # regularization
         self.num_heads = num_heads
-        self.dropout = dropout
+        self.embed_dimension = embed_dimension
+        # Perform causal masking
+        self.is_causal = is_causal
         self.batch_first = batch_first
-        self.head_dim = embed_dim // num_heads
-        assert self.head_dim * num_heads == self.embed_dim, "embed_dim must be divisible by num_heads"
+        self.dropout = dropout
 
-        if not self._qkv_same_embed_dim:
-            self.q_proj_weight = Parameter(torch.empty((embed_dim, embed_dim), **factory_kwargs))
-            self.k_proj_weight = Parameter(torch.empty((embed_dim, self.kdim), **factory_kwargs))
-            self.v_proj_weight = Parameter(torch.empty((embed_dim, self.vdim), **factory_kwargs))
-            self.register_parameter('in_proj_weight', None)
+    def forward(self, x):
+        # calculate query, key, values for all heads in batch and move head forward to be the batch dim
+        query_projected = self.c_attn(x)
+
+        batch_size = query_projected.size(0)
+        embed_dim = query_projected.size(2)
+        head_dim = embed_dim // (self.num_heads * 3)
+
+        query, key, value = query_projected.chunk(3, -1)
+        query = query.view(batch_size, -1, self.num_heads, head_dim).transpose(1, 2)
+        key = key.view(batch_size, -1, self.num_heads, head_dim).transpose(1, 2)
+        value = value.view(batch_size, -1, self.num_heads, head_dim).transpose(1, 2)
+
+        if self.training:
+            dropout = self.dropout
+            is_causal = self.is_causal
         else:
-            self.in_proj_weight = Parameter(torch.empty((3 * embed_dim, embed_dim), **factory_kwargs))
-            self.register_parameter('q_proj_weight', None)
-            self.register_parameter('k_proj_weight', None)
-            self.register_parameter('v_proj_weight', None)
-
-        if bias:
-            self.in_proj_bias = Parameter(torch.empty(3 * embed_dim, **factory_kwargs))
-        else:
-            self.register_parameter('in_proj_bias', None)
-        self.out_proj = NonDynamicallyQuantizableLinear(embed_dim, embed_dim, bias=bias, **factory_kwargs)
-
-        if add_bias_kv:
-            self.bias_k = Parameter(torch.empty((1, 1, embed_dim), **factory_kwargs))
-            self.bias_v = Parameter(torch.empty((1, 1, embed_dim), **factory_kwargs))
-        else:
-            self.bias_k = self.bias_v = None
-
-        self.add_zero_attn = add_zero_attn
-
-        self._reset_parameters()
-
-    def _reset_parameters(self):
-        if self._qkv_same_embed_dim:
-            xavier_uniform_(self.in_proj_weight)
-        else:
-            xavier_uniform_(self.q_proj_weight)
-            xavier_uniform_(self.k_proj_weight)
-            xavier_uniform_(self.v_proj_weight)
-
-        if self.in_proj_bias is not None:
-            constant_(self.in_proj_bias, 0.)
-            constant_(self.out_proj.bias, 0.)
-        if self.bias_k is not None:
-            xavier_normal_(self.bias_k)
-        if self.bias_v is not None:
-            xavier_normal_(self.bias_v)
-
-    def __setstate__(self, state):
-        # Support loading old MultiheadAttention checkpoints generated by v1.1.0
-        if '_qkv_same_embed_dim' not in state:
-            state['_qkv_same_embed_dim'] = True
-
-        super().__setstate__(state)
-
-    def forward(
-            self,
-            query: Tensor,
-            key: Tensor,
-            value: Tensor,
-            key_padding_mask: Optional[Tensor] = None,
-            need_weights: bool = True,
-            attn_mask: Optional[Tensor] = None,
-            average_attn_weights: bool = True,
-            is_causal : bool = False) -> Tuple[Tensor, Optional[Tensor]]:
-        
-        is_batched = query.dim() == 3
-
-        if self.batch_first and is_batched:
-            # make sure that the transpose op does not affect the "is" property
-            if key is value:
-                if query is key:
-                    query = key = value = query.transpose(1, 0)
-                else:
-                    query, key = (x.transpose(1, 0) for x in (query, key))
-                    value = key
-            else:
-                query, key, value = (x.transpose(1, 0) for x in (query, key, value))
-
-        # batch_size = query.size(0)
-        # query = query.view(batch_size, -1, self.num_heads, self.head_dim).transpose(1, 2)
-        # key = key.view(batch_size, -1, self.num_heads, self.head_dim).transpose(1, 2)
-        # value = value.view(batch_size, -1, self.num_heads, self.head_dim).transpose(1, 2)
+            dropout = 0.0
+            is_causal = False
 
         with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):
-            attn_output = F.scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=self.dropout, is_causal=is_causal)
-        
+            y = F.scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=dropout, is_causal=is_causal)
+    
+        y = y.transpose(1, 2).view(batch_size, -1, self.num_heads * head_dim) #put view back instead of resape
 
-        if self.batch_first and is_batched:
-            return attn_output.transpose(1, 0)
-        else:
-            return attn_output
+        return y
