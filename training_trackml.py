@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset
 from scoring import calc_score_trackml
-from trackml_data import load_trackml_data
+from trackml_data import load_trackml_data, chunking
 from sklearn.metrics import pairwise_distances
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -140,6 +140,8 @@ if __name__ == "__main__":
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
 
+    col_names = ["x", "y", "z", "volume_id", "vx", "vy", "vz", "px", "py", "pz", "q", "particle_id", "weight", "event_id", "dummy", "dummy2", "dummy3"]
+
     hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_val_dd.csv", normalize=True)
     val_dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
     valid_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
@@ -152,9 +154,13 @@ if __name__ == "__main__":
     for epoch in range(NUM_EPOCHS):
         # Train the model
         train_losses = []
-        with pd.read_csv("../../trackml_train_dd.csv", chunksize=CHUNK_SIZE) as reader:
+        i = 0
+        with pd.read_csv("../../trackml_train_dd.csv", chunksize=CHUNK_SIZE, header=None, names=col_names) as reader:
+            if i == 0:
+                reader = reader.drop(0)
+                i = 1
             for chunk in reader:
-                hits_data, track_params_data, track_classes_data = load_trackml_data(chunk)
+                hits_data, track_params_data, track_classes_data = chunking(chunk)
                 dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
                 train_loader = DataLoader(dataset, batch_size=1, shuffle=False)
                 loss = train_epoch(transformer, optimizer, train_loader, loss_fn)
