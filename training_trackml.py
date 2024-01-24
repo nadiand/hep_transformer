@@ -151,10 +151,10 @@ if __name__ == "__main__":
         train_losses = []
         i = 0
         with pd.read_csv("../../trackml_train_dd.csv", chunksize=CHUNK_SIZE, header=None, names=col_names) as reader:
-            if i == 0:
-                reader = reader.drop(0)
-                i = 1
             for chunk in reader:
+                if i == 0:
+                    chunk = chunk.drop(0)
+                    i = 1
                 hits_data, track_params_data, track_classes_data = chunking(chunk)
                 dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
                 train_loader = DataLoader(dataset, batch_size=1, shuffle=False)
@@ -166,10 +166,10 @@ if __name__ == "__main__":
         val_losses = []
         i = 0
         with pd.read_csv("../../trackml_val_dd.csv", chunksize=CHUNK_SIZE, header=None, names=col_names) as reader:
-            if i == 0:
-                reader = reader.drop(0)
-                i = 1
             for chunk in reader:
+                if i == 0:
+                    chunk = chunk.drop(0)
+                    i = 1
                 hits_data, track_params_data, track_classes_data = chunking(chunk)
                 dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
                 valid_loader = DataLoader(dataset, batch_size=1, shuffle=False)
