@@ -119,8 +119,9 @@ def predict(model, test_loader):
 if __name__ == "__main__":
     NUM_EPOCHS = 1
     EARLY_STOPPING = 50
-    MODEL_NAME = "test"
-    hits_per_event = 50
+    MODEL_NAME = "9000dd"
+    hits_per_event = 9000
+    CHUNK_SIZE = hits_per_event*100
 
     torch.manual_seed(37)  # for reproducibility
 
@@ -139,6 +140,10 @@ if __name__ == "__main__":
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
 
+    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_val_dd.csv", normalize=True)
+    val_dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
+    valid_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
+
     # Training
     train_losses, val_losses = [], []
     min_val_loss = np.inf
@@ -147,7 +152,7 @@ if __name__ == "__main__":
     for epoch in range(NUM_EPOCHS):
         # Train the model
         train_losses = []
-        with pd.read_csv("trackml_1to5tracks.csv", chunksize=hits_per_event) as reader:
+        with pd.read_csv("../../trackml_train_dd.csv", chunksize=CHUNK_SIZE) as reader:
             for chunk in reader:
                 hits_data, track_params_data, track_classes_data = load_trackml_data(chunk)
                 dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
@@ -157,15 +162,7 @@ if __name__ == "__main__":
         train_loss = np.array(train_losses).mean()
 
         # Evaluate using validation split
-        validation_losses = []
-        with pd.read_csv("trackml_validation_data_subdivided.csv", chunksize=8*hits_per_event) as reader:
-            for chunk in reader:
-                hits_data, track_params_data, track_classes_data = load_trackml_data(chunk)
-                dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
-                valid_loader = DataLoader(dataset, batch_size=8, shuffle=False)
-                loss = evaluate(transformer, valid_loader, loss_fn)
-                validation_losses.append(loss)
-        val_loss = np.array(validation_losses).mean()
+        val_loss = evaluate(transformer, valid_loader, loss_fn)
         
         # Bookkeeping
         print(f"Epoch: {epoch}\nVal loss: {val_loss:.8f}, Train loss: {train_loss:.8f}")
