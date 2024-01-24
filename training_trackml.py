@@ -117,11 +117,12 @@ def predict(model, test_loader):
     return predictions, score/len(test_loader)
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 1
-    EARLY_STOPPING = 50
+    NUM_EPOCHS = 1000
+    EARLY_STOPPING = 200
     MODEL_NAME = "9000dd"
     hits_per_event = 9000
     CHUNK_SIZE = hits_per_event*100
+    col_names = ["x", "y", "z", "volume_id", "vx", "vy", "vz", "px", "py", "pz", "q", "particle_id", "weight", "event_id", "dummy", "dummy2", "dummy3"]
 
     torch.manual_seed(37)  # for reproducibility
 
@@ -139,12 +140,6 @@ if __name__ == "__main__":
 
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
-
-    col_names = ["x", "y", "z", "volume_id", "vx", "vy", "vz", "px", "py", "pz", "q", "particle_id", "weight", "event_id", "dummy", "dummy2", "dummy3"]
-
-    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_val_dd.csv", normalize=True)
-    val_dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
-    valid_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
 
     # Training
     train_losses, val_losses = [], []
@@ -168,7 +163,19 @@ if __name__ == "__main__":
         train_loss = np.array(train_losses).mean()
 
         # Evaluate using validation split
-        val_loss = evaluate(transformer, valid_loader, loss_fn)
+        val_losses = []
+        i = 0
+        with pd.read_csv("../../trackml_val_dd.csv", chunksize=CHUNK_SIZE, header=None, names=col_names) as reader:
+            if i == 0:
+                reader = reader.drop(0)
+                i = 1
+            for chunk in reader:
+                hits_data, track_params_data, track_classes_data = chunking(chunk)
+                dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
+                valid_loader = DataLoader(dataset, batch_size=1, shuffle=False)
+                loss = evaluate(transformer, valid_loader, loss_fn)
+                val_losses.append(loss)
+        val_loss = np.array(val_losses).mean()
         
         # Bookkeeping
         print(f"Epoch: {epoch}\nVal loss: {val_loss:.8f}, Train loss: {train_loss:.8f}")
@@ -190,12 +197,12 @@ if __name__ == "__main__":
             break
 
     # Test generalizability of model on test set
-    scores = []
-    with pd.read_csv("trackml_test_data_subdivided.csv", chunksize=hits_per_event) as reader:
-        for chunk in reader:
-            hits_data, track_params_data, track_classes_data = load_trackml_data(chunk)
-            dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
-            test_loader = DataLoader(dataset, batch_size=1, shuffle=False)
-            preds, score = predict(transformer, test_loader)
-            scores.append(score)
-    print(np.array(scores).mean())
+    # scores = []
+    # with pd.read_csv("../../trackml_test_data_subdivided.csv", chunksize=hits_per_event) as reader:
+    #     for chunk in reader:
+    #         hits_data, track_params_data, track_classes_data = load_trackml_data(chunk)
+    #         dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
+    #         test_loader = DataLoader(dataset, batch_size=1, shuffle=False)
+    #         preds, score = predict(transformer, test_loader)
+    #         scores.append(score)
+    # print(np.array(scores).mean())
