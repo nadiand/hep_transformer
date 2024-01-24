@@ -122,7 +122,6 @@ if __name__ == "__main__":
     MODEL_NAME = "9000dd"
     hits_per_event = 9000
     CHUNK_SIZE = hits_per_event*100
-    col_names = ["x", "y", "z", "volume_id", "vx", "vy", "vz", "px", "py", "pz", "q", "particle_id", "weight", "event_id", "dummy", "dummy2", "event_class"]
 
     torch.manual_seed(37)  # for reproducibility
 
@@ -149,12 +148,8 @@ if __name__ == "__main__":
     for epoch in range(NUM_EPOCHS):
         # Train the model
         train_losses = []
-        i = 0
-        with pd.read_csv("../../trackml_train_dd.csv", chunksize=CHUNK_SIZE, header=None, names=col_names) as reader:
+        with pd.read_csv("../../trackml_train_dd.csv", chunksize=CHUNK_SIZE) as reader:
             for chunk in reader:
-                if i == 0:
-                    chunk = chunk.drop(0)
-                    i = 1
                 hits_data, track_params_data, track_classes_data = chunking(chunk)
                 dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
                 train_loader = DataLoader(dataset, batch_size=1, shuffle=False)
@@ -164,12 +159,8 @@ if __name__ == "__main__":
 
         # Evaluate using validation split
         val_losses = []
-        i = 0
-        with pd.read_csv("../../trackml_val_dd.csv", chunksize=CHUNK_SIZE, header=None, names=col_names) as reader:
+        with pd.read_csv("../../trackml_val_dd.csv", chunksize=CHUNK_SIZE) as reader:
             for chunk in reader:
-                if i == 0:
-                    chunk = chunk.drop(0)
-                    i = 1
                 hits_data, track_params_data, track_classes_data = chunking(chunk)
                 dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
                 valid_loader = DataLoader(dataset, batch_size=1, shuffle=False)
