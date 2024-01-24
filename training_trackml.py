@@ -122,7 +122,7 @@ if __name__ == "__main__":
     MODEL_NAME = "9000dd"
     hits_per_event = 9000
     CHUNK_SIZE = hits_per_event*100
-    col_names = ["x", "y", "z", "volume_id", "vx", "vy", "vz", "px", "py", "pz", "q", "particle_id", "weight", "event_id", "dummy", "dummy2", "dummy3"]
+    col_names = ["x", "y", "z", "volume_id", "vx", "vy", "vz", "px", "py", "pz", "q", "particle_id", "weight", "event_id", "dummy", "dummy2", "event_class"]
 
     torch.manual_seed(37)  # for reproducibility
 

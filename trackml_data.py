@@ -149,10 +149,10 @@ def load_trackml_data(data_path, normalize=False):
     data = pd.read_csv(data_path, header=None, names=col_names)
     data = data.drop(0)
     # Find the max number of hits in the batch to pad up to
-    # events = data['event_class'].unique()
-    # event_lens = [len(data[data['event_class'] == event]) for event in events]
-    events = data['event_id'].unique()
-    event_lens = [len(data[data['event_id'] == event]) for event in events]
+    events = data['event_class'].unique()
+    event_lens = [len(data[data['event_class'] == event]) for event in events]
+    # events = data['event_id'].unique()
+    # event_lens = [len(data[data['event_id'] == event]) for event in events]
     max_num_hits = max(event_lens)
 
     # Normalize the data if applicable
@@ -164,8 +164,8 @@ def load_trackml_data(data_path, normalize=False):
 
     # Shuffling the data and grouping by event ID
     shuffled_data = data.sample(frac=1)
-    data_grouped_by_event = shuffled_data.groupby("event_id")
-    # data_grouped_by_event = data.groupby("event_class")
+    # data_grouped_by_event = shuffled_data.groupby("event_id")
+    data_grouped_by_event = shuffled_data.groupby("event_class")
 
     def extract_hits_data(event_rows):
         # Returns the hit coordinates as a padded sequence; this is the input to the transformer
@@ -212,10 +212,10 @@ if __name__ == "__main__":
     
 def chunking(data, normalize=False):
     # Find the max number of hits in the batch to pad up to
-    # events = data['event_class'].unique()
-    # event_lens = [len(data[data['event_class'] == event]) for event in events]
-    events = data['event_id'].unique()
-    event_lens = [len(data[data['event_id'] == event]) for event in events]
+    events = data['event_class'].unique()
+    event_lens = [len(data[data['event_class'] == event]) for event in events]
+    # events = data['event_id'].unique()
+    # event_lens = [len(data[data['event_id'] == event]) for event in events]
     max_num_hits = max(event_lens)
 
     # Normalize the data if applicable
@@ -227,8 +227,8 @@ def chunking(data, normalize=False):
 
     # Shuffling the data and grouping by event ID
     shuffled_data = data.sample(frac=1)
-    data_grouped_by_event = shuffled_data.groupby("event_id")
-    # data_grouped_by_event = data.groupby("event_class")
+    # data_grouped_by_event = shuffled_data.groupby("event_id")
+    data_grouped_by_event = shuffled_data.groupby("event_class")
 
     def extract_hits_data(event_rows):
         # Returns the hit coordinates as a padded sequence; this is the input to the transformer
