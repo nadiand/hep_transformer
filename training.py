@@ -107,7 +107,7 @@ def predict(model, test_loader):
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
         cluster_labels = clustering(pred)
-        event_score = calc_score_trackml(cluster_labels, track_labels)
+        event_score = calc_score_trackml(cluster_labels[0], track_labels[0])
         score += event_score
 
         for _, e_id in enumerate(event_id):
