@@ -31,6 +31,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
     torch.set_grad_enabled(True)
     model.train()
     losses = 0.
+    intermid_loss = 0.
     for i, data in enumerate(train_loader):
         _, hits, track_params, _ = data
         optim.zero_grad()
@@ -49,10 +50,14 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
             loss = loss_fn(pred, track_params)
         
         # Update loss and scaler
-        scaler.scale(loss).backward()
-        scaler.step(optim)
-        scaler.update()
-        losses += loss.item()
+        intermid_loss += loss
+        if i % 16 == 0:
+            mean_loss = intermid_loss.mean()
+            scaler.scale(mean_loss).backward()
+            scaler.step(optim)
+            scaler.update()
+            losses += mean_loss.item()
+            intermid_loss = 0.
 
     return losses / len(train_loader)
 
@@ -64,6 +69,7 @@ def evaluate(model, validation_loader, loss_fn):
     # Get the network in evaluation mode
     model.eval()
     losses = 0.
+    intermid_loss = 0.
     with torch.no_grad():
         for i, data in enumerate(valid_loader):
             _, hits, track_params, _ = data
@@ -80,7 +86,11 @@ def evaluate(model, validation_loader, loss_fn):
                 pred = model(hits, padding_mask)
                 loss = loss_fn(pred, track_params)
 
-            losses += loss.item()
+            intermid_loss += loss
+            if i % 16 == 0:
+                mean_loss = intermid_loss.mean()
+                losses += mean_loss.item()
+                intermid_loss = 0.
             
     return losses / len(validation_loader)
 
