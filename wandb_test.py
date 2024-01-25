@@ -31,7 +31,7 @@ train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,
                                                               valid_frac=0.15,
                                                               test_frac=0.15,
-                                                              batch_size=1024)
+                                                              batch_size=1)
 
 def train_model(num_enc_layers, emb_dim, nr_heads, dim_ff, drop):
     transformer = TransformerClassifier(num_encoder_layers=num_enc_layers,
@@ -45,10 +45,11 @@ def train_model(num_enc_layers, emb_dim, nr_heads, dim_ff, drop):
 
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
+    scaler = torch.cuda.amp.GradScaler()
 
     for _ in range(30):
         # Train the model
-        train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn)
+        train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn, scaler)
         val_loss = evaluate(transformer, valid_loader, loss_fn)
         wandb.log({"val_loss" : val_loss, "train_loss" : train_loss})
 
