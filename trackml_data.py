@@ -144,15 +144,10 @@ def transform_trackml_data(event_id, split=False):
 
 
 def load_trackml_data(data_path, normalize=False):
-    col_names = ["x", "y", "z", "volume_id", "vx", "vy", "vz", "px", "py", "pz", "q", "particle_id", "weight", "event_id", "dummy", "dummy2", "dummy3"]
-
-    data = pd.read_csv(data_path, header=None, names=col_names)
-    data = data.drop(0)
+    data = pd.read_csv(data_path)
     # Find the max number of hits in the batch to pad up to
-    events = data['event_class'].unique()
-    event_lens = [len(data[data['event_class'] == event]) for event in events]
-    # events = data['event_id'].unique()
-    # event_lens = [len(data[data['event_id'] == event]) for event in events]
+    events = data['event_id'].unique()
+    event_lens = [len(data[data['event_id'] == event]) for event in events]
     max_num_hits = max(event_lens)
 
     # Normalize the data if applicable
@@ -164,8 +159,7 @@ def load_trackml_data(data_path, normalize=False):
 
     # Shuffling the data and grouping by event ID
     shuffled_data = data.sample(frac=1)
-    # data_grouped_by_event = shuffled_data.groupby("event_id")
-    data_grouped_by_event = shuffled_data.groupby("event_class")
+    data_grouped_by_event = shuffled_data.groupby("event_id")
 
     def extract_hits_data(event_rows):
         # Returns the hit coordinates as a padded sequence; this is the input to the transformer
