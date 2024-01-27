@@ -172,8 +172,10 @@ def load_trackml_data(data_path, normalize=False):
         event_track_params_data = event_rows[["vx","vy","vz","px","py","pz","q"]].to_numpy(dtype=np.float32)
         p = np.sqrt(event_track_params_data[:,3]**2 + event_track_params_data[:,4]**2 + event_track_params_data[:,5]**2)
         theta = np.arccos(event_track_params_data[:,5]/p)
+        ita = -np.log(np.tan(theta/2))
+        # normalized_ita = np.exp(ita) / (1 + np.exp(ita))
         phi = np.arctan2(event_track_params_data[:,4], event_track_params_data[:,3])
-        processed_event_track_params_data = np.column_stack([theta, phi, event_track_params_data[:,6]])
+        processed_event_track_params_data = np.column_stack([ita, phi, event_track_params_data[:,6]])
         return np.pad(processed_event_track_params_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
 
     def extract_hit_classes_data(event_rows):
