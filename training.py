@@ -63,7 +63,7 @@ def evaluate(model, validation_loader, loss_fn):
     model.eval()
     losses = 0.
     with torch.no_grad():
-        for data in valid_loader:
+        for data in validation_loader:
             _, hits, track_params, _ = data
 
             # Make prediction
@@ -107,7 +107,7 @@ def predict(model, test_loader):
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
         cluster_labels = clustering(pred)
-        event_score = calc_score_trackml(cluster_labels[0], track_labels[0])
+        event_score = calc_score(cluster_labels[0], track_labels[0])
         score += event_score
 
         for _, e_id in enumerate(event_id):
@@ -116,14 +116,14 @@ def predict(model, test_loader):
     return predictions, score/len(test_loader)
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 50
-    EARLY_STOPPING = 200
-    MODEL_NAME = "50tracks_main"
+    NUM_EPOCHS = 500
+    EARLY_STOPPING = 100
+    MODEL_NAME = "redvid_10to50_linear"
 
     torch.manual_seed(37)  # for reproducibility
 
     # Load and split dataset into training, validation and test sets, and get dataloaders
-    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_50tracks.csv", normalize=True)
+    hits_data, track_params_data, track_classes_data = load_linear_3d_data(data_path="../../hits_and_tracks_3d_10to50_events_all.csv", max_num_hits=500)
     dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
     train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,
@@ -135,7 +135,7 @@ if __name__ == "__main__":
     # Transformer model
     transformer = TransformerClassifier(num_encoder_layers=6,
                                         d_model=32,
-                                        n_head=8,
+                                        n_head=4,
                                         input_size=3,
                                         output_size=3,
                                         dim_feedforward=128,
@@ -175,8 +175,8 @@ if __name__ == "__main__":
             print("Early stopping...")
             break
 
-    preds, score = predict(transformer, test_loader)
-    print(score)
-    preds = list(preds.values())
-    for param in ["theta", "phi", "q"]:
-        plot_heatmap(preds, param, "train")
+    # preds, score = predict(transformer, test_loader)
+    # print(score)
+    # preds = list(preds.values())
+    # for param in ["theta", "phi", "q"]:
+    #     plot_heatmap(preds, param, "train")
