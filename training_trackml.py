@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders
 from scoring import calc_score_trackml
-from trackml_data import load_trackml_data
+from trackml_data import load_trackml_data, chunking
 from sklearn.metrics import pairwise_distances
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -117,10 +117,11 @@ def predict(model, test_loader):
     return predictions, score/len(test_loader)
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 1
-    EARLY_STOPPING = 50
-    MODEL_NAME = "test"
-    hits_per_event = 50
+    NUM_EPOCHS = 1000
+    EARLY_STOPPING = 200
+    MODEL_NAME = "9000dd"
+    hits_per_event = 9000
+    CHUNK_SIZE = hits_per_event*100
 
     torch.manual_seed(37)  # for reproducibility
 
@@ -156,8 +157,28 @@ if __name__ == "__main__":
 
     for epoch in range(NUM_EPOCHS):
         # Train the model
-        train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn)
-        val_loss = evaluate(transformer, valid_loader, loss_fn)
+        train_losses = []
+        with pd.read_csv("../../trackml_train_dd.csv", chunksize=CHUNK_SIZE) as reader:
+            for chunk in reader:
+                hits_data, track_params_data, track_classes_data = chunking(chunk)
+                dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
+                train_loader = DataLoader(dataset, batch_size=1, shuffle=False)
+                loss = train_epoch(transformer, optimizer, train_loader, loss_fn)
+                train_losses.append(loss)
+        train_loss = np.array(train_losses).mean()
+
+        # Evaluate using validation split
+        val_losses = []
+        with pd.read_csv("../../trackml_val_dd.csv", chunksize=CHUNK_SIZE) as reader:
+            for chunk in reader:
+                hits_data, track_params_data, track_classes_data = chunking(chunk)
+                dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
+                valid_loader = DataLoader(dataset, batch_size=1, shuffle=False)
+                loss = evaluate(transformer, valid_loader, loss_fn)
+                val_losses.append(loss)
+        val_loss = np.array(val_losses).mean()
+        
+        # Bookkeeping
         print(f"Epoch: {epoch}\nVal loss: {val_loss:.8f}, Train loss: {train_loss:.8f}")
 
         train_losses.append(train_loss)

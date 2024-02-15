@@ -115,7 +115,7 @@ def evaluate_split_event(old_data, data):
     print("Efficiency standard dev:", portions_arr.std())
 
 
-def transform_trackml_data(event_id):
+def transform_trackml_data(event_id, split=False):
     hits_data = pd.read_csv(f'event0000{event_id}-hits.csv')
     particles_data = pd.read_csv(f'event0000{event_id}-particles.csv')
     truth_data = pd.read_csv(f'event0000{event_id}-truth.csv')
@@ -130,18 +130,20 @@ def transform_trackml_data(event_id):
 
     final_data = merged_data[["x", "y", "z", "volume_id", "vx", "vy", "vz", "px", "py", "pz", "q", "particle_id", "weight_x"]]
     final_data['event_id'] = event_id
+
     # Split up the event into multiple subevents, using domain decomposition
-    split_data = split_event(final_data, int(event_id))
-    ready_data = split_data.sort_values('event_class')
+    if split:
+        split_data = split_event(final_data, int(event_id))
+        final_data = split_data.sort_values('event_class')
 
     # Write the sub-events to a file
-    # data_type = random.choices(["train", "test", "val"], cum_weights=[70, 15, 15])[0]
-    # if data_type == "train":
-    #     ready_data.to_csv('trackml_train_data_subdivided.csv', mode='a', index=False, header=False)
-    # elif data_type == "test":
-    #     ready_data.to_csv('trackml_test_data_subdivided.csv', mode='a', index=False, header=False)
-    # else:
-    #     ready_data.to_csv('trackml_validation_data_subdivided.csv', mode='a', index=False, header=False)
+    data_type = random.choices(["train", "test", "val"], cum_weights=[70, 85, 100])[0]
+    if data_type == "train":
+        final_data.to_csv('trackml_train_data_subdivided.csv', mode='a', index=False, header=False)
+    elif data_type == "test":
+        final_data.to_csv('trackml_test_data_subdivided.csv', mode='a', index=False, header=False)
+    else:
+        final_data.to_csv('trackml_validation_data_subdivided.csv', mode='a', index=False, header=False)
 
 
 def load_trackml_data(data, normalize=False, chunking=False):

@@ -5,11 +5,10 @@ from sklearn.cluster import AgglomerativeClustering
 import pandas as pd
 
 from model import TransformerClassifier, PAD_TOKEN, save_model
-from dataset import HitsDataset
-from scoring import calc_score_trackml
+from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
+from scoring import calc_score, calc_score_trackml
 from trackml_data import load_trackml_data
 from plotting import *
-from torch.utils.data import DataLoader
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -24,7 +23,7 @@ def clustering(pred_params):
     cluster_labels = [torch.from_numpy(cl_lbl).int() for cl_lbl in cluster_labels]
     return cluster_labels
 
-def train_epoch(model, optim, train_loader, loss_fn, scaler):
+def train_epoch(model, optim, train_loader, loss_fn):
     '''
     Conducts a single epoch of training: prediction, loss calculation, and loss
     backpropagation. Returns the average loss over the whole train data.
@@ -33,27 +32,24 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
     torch.set_grad_enabled(True)
     model.train()
     losses = 0.
-    for i, data in enumerate(train_loader):
+
+    for data in train_loader:
         _, hits, track_params, _ = data
         optim.zero_grad()
 
-        # Move to CUDA
+        # Make prediction
         hits = hits.to(DEVICE)
         track_params = track_params.to(DEVICE)
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
+        pred = model(hits, padding_mask)
 
-        hits = torch.unsqueeze(hits[~padding_mask], 0)
+        pred = torch.unsqueeze(pred[~padding_mask], 0)
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
 
-        # Make prediction
-        with torch.cuda.amp.autocast():
-            pred = model(hits, padding_mask)
-            loss = loss_fn(pred, track_params)
-        
-        # Update loss and scaler
-        scaler.scale(loss).backward()
-        scaler.step(optim)
-        scaler.update()
+        # Calculate loss and use it to update weights
+        loss = loss_fn(pred, track_params)
+        loss.backward()
+        optim.step()
         losses += loss.item()
 
     return losses / len(train_loader)
@@ -67,21 +63,20 @@ def evaluate(model, validation_loader, loss_fn):
     model.eval()
     losses = 0.
     with torch.no_grad():
-        for i, data in enumerate(valid_loader):
+        for data in validation_loader:
             _, hits, track_params, _ = data
 
             # Make prediction
             hits = hits.to(DEVICE)
             track_params = track_params.to(DEVICE)
+            
             padding_mask = (hits == PAD_TOKEN).all(dim=2)
+            pred = model(hits, padding_mask)
 
-            hits = torch.unsqueeze(hits[~padding_mask], 0)
+            pred = torch.unsqueeze(pred[~padding_mask], 0)
             track_params = torch.unsqueeze(track_params[~padding_mask], 0)
             
-            with torch.cuda.amp.autocast():
-                pred = model(hits, padding_mask)
-                loss = loss_fn(pred, track_params)
-
+            loss = loss_fn(pred, track_params)
             losses += loss.item()
             
     return losses / len(validation_loader)
@@ -102,17 +97,16 @@ def predict(model, test_loader):
         hits = hits.to(DEVICE)
         track_params = track_params.to(DEVICE)
         track_labels = track_labels.to(DEVICE)
-        padding_mask = (hits == PAD_TOKEN).all(dim=2)
 
-        hits = torch.unsqueeze(hits[~padding_mask], 0)
+        padding_mask = (hits == PAD_TOKEN).all(dim=2)
+        pred = model(hits, padding_mask)
+
+        pred = torch.unsqueeze(pred[~padding_mask], 0)
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
-        with torch.cuda.amp.autocast():
-            pred = model(hits, padding_mask)
-
         cluster_labels = clustering(pred)
-        event_score = calc_score_trackml(cluster_labels, track_labels)
+        event_score = calc_score(cluster_labels[0], track_labels[0])
         score += event_score
 
         for _, e_id in enumerate(event_id):
@@ -121,23 +115,27 @@ def predict(model, test_loader):
     return predictions, score/len(test_loader)
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 5
-    EARLY_STOPPING = 50
-    MODEL_NAME = "flash"
-    hits_per_event = 620
-    CHUNK_SIZE = hits_per_event*100
+    NUM_EPOCHS = 500
+    EARLY_STOPPING = 100
+    MODEL_NAME = "redvid_10to50_linear"
+    MAX_NUM_HITS = 500
 
     torch.manual_seed(37)  # for reproducibility
 
-    # Load validation data, and get a dataloader
-    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="trackml_1to5tracks.csv", normalize=True)
-    val_dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
-    valid_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
+    # Load and split dataset into training, validation and test sets, and get dataloaders
+    hits_data, track_params_data, track_classes_data = load_linear_3d_data(data_path="../../hits_and_tracks_3d_10to50_events_all.csv", max_num_hits=MAX_NUM_HITS)
+    dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
+    train_loader, valid_loader, test_loader = get_dataloaders(dataset,
+                                                              train_frac=0.7,
+                                                              valid_frac=0.15,
+                                                              test_frac=0.15,
+                                                              batch_size=64)
+    print("data loaded")
 
     # Transformer model
     transformer = TransformerClassifier(num_encoder_layers=6,
-                                        d_model=64,
-                                        n_head=8,
+                                        d_model=32,
+                                        n_head=4,
                                         input_size=3,
                                         output_size=3,
                                         dim_feedforward=128,
@@ -148,7 +146,6 @@ if __name__ == "__main__":
 
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
-    scaler = torch.cuda.amp.GradScaler()
 
     # Training
     train_losses, val_losses = [], []
@@ -157,19 +154,11 @@ if __name__ == "__main__":
 
     for epoch in range(NUM_EPOCHS):
         # Train the model
-        train_losses = []
-        with pd.read_csv("trackml_data_50tracks.csv", chunksize=CHUNK_SIZE) as reader:
-            for chunk in reader:
-                hits_data, track_params_data, track_classes_data = load_trackml_data(chunk)
-                train_dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
-                train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
-                loss = train_epoch(transformer, optimizer, train_loader, loss_fn)
-                train_losses.append(loss)
-        train_loss = np.array(train_losses).mean()
+        train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn)
 
         # Evaluate using validation split
         val_loss = evaluate(transformer, valid_loader, loss_fn)
-        
+
         # Bookkeeping
         print(f"Epoch: {epoch}\nVal loss: {val_loss:.8f}, Train loss: {train_loss:.8f}", flush=True)
         train_losses.append(train_loss)

@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.interpolate import interp1d
 
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
@@ -23,28 +24,73 @@ def plot_score_vs_tracknr(preds):
     plt.ylabel("Score")
     plt.show()
 
+
 def visualize_track(coords, labels, label, nr):
-    '''
-    Visualizes the simplified setup: the 5 detectors as spheres and a few 
-    events as the hits of the generated particles with the detectors.
-    '''
-    # Plot the detectors
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
 
-    # Plot events
+    # Group the hits originating from the same track together
+    tracks = {}
     for i, coord in enumerate(coords):
         if coord[0] != -1.:
-            plt.plot(coord[0]*np.cos(coord[1]), coord[0]*np.sin(coord[1]), coord[2], marker=".", c=colors[labels[i].item()])
+            x, y, z = convert_cylindrical_to_cartesian(coord[0], coord[1], coord[2])
+            track_id = labels[i].item() % 50
+            if not track_id in tracks.keys():
+                tracks[track_id] = [(x.item(), y.item(), z.item())]
+            else:
+                values = tracks[track_id]
+                if not (x.item(), y.item(), z.item()) in values:
+                    values.append((x.item(), y.item(), z.item()))
+                    tracks.update({track_id: values})
+
+    i = 0
+    for t in tracks.keys():
+        if i < 10:
+            i += 1
+            # Take all hits associated with a track
+            coords = tracks[t]
+            # ref = (0,0,0)
+            # coords.sort(key=lambda x: (x[0] - ref[0]) ** 2 + (x[1] - ref[1]) ** 2 + (x[2] - ref[2]) ** 2)
+
+            xs = [coord[0] for coord in coords]
+            ys = [coord[1] for coord in coords]
+            zs = [coord[2] for coord in coords]
+
+            unique_indices = np.unique(zs, return_index=True)[1]
+            xs = [xs[i] for i in unique_indices]
+            ys = [ys[i] for i in unique_indices]
+            zs = [zs[i] for i in unique_indices]
+
+            # Normalize the coordinates
+            # xs = (xs - np.mean(xs))/np.std(xs)
+            # ys = (ys - np.mean(ys))/np.std(ys)
+            # zs = (zs - np.mean(zs))/np.std(zs)
+
+            interp_func_x = interp1d(zs, xs, kind='cubic')
+            interp_func_y = interp1d(zs, ys, kind='cubic')
+            interp_func_z = interp1d(zs, zs, kind='cubic')
+
+            # Define the range for the interpolated curve
+            # print(zs.min(), zs.max())
+            interp_z = np.linspace(min(zs), max(zs), 500)
+
+            # Interpolate coordinates
+            interp_x = interp_func_x(interp_z)
+            interp_y = interp_func_y(interp_z)
+            interp_z = interp_func_z(interp_z)
+
+            # Plot
+            ax.plot(interp_x, interp_y, interp_z, linestyle='-', color=colors[t])
+            ax.scatter(interp_x, interp_y, interp_z, marker=".", color=colors[t])
     
-    plt.savefig(f"figs/{label}{nr}.png")
+    # plt.savefig(f"figs/{label}{nr}.png")
+    ax.set_xlim([-55000, 50000])
+    ax.set_ylim([0, 55000])
+    ax.set_zlim([0, 3000])
+    plt.show()
+
 
 def visualize_3d_hits(data_df):
-    '''
-    Visualizes the simplified setup: the 5 detectors as spheres and a few 
-    events as the hits of the generated particles with the detectors.
-    '''
-    # Plot the detectors
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=train          # Job name
 #SBATCH --ntasks=1                    # Run on a single GPU
-#SBATCH --time=24:30:00               # Time limit hrs:min:sec
+#SBATCH --time=24:00:00               # Time limit hrs:min:sec
 #SBATCH --partition=gpu
 #SBATCH --gpus-per-node=1
 #SBATCH --mail-type=BEGIN,END
@@ -13,10 +13,8 @@ module load 2022 Python/3.10.4-GCCcore-11.3.0
 module load CUDA/11.8.0
 module load cuDNN/8.6.0.163-CUDA-11.8.0
 
-python -m pip install --upgrade pip
-python -m pip install torch==2.1.2
-python -m pip install scikit-learn
-python -m pip install pandas
+pip install torch==2.1.2
+pip install scikit-learn
+pip install pandas
 
-
-python training_f16.py
+python training.py
