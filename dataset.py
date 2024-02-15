@@ -25,7 +25,6 @@ def get_dataloaders(dataset, train_frac, valid_frac, test_frac, batch_size):
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=False)
     valid_loader = DataLoader(valid_set, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_set, batch_size=1, shuffle=False)
-    # TODO look into shuffle!!!!
 
     return train_loader, valid_loader, test_loader
 
@@ -90,7 +89,6 @@ def load_curved_3d_data(data_path, max_num_hits):
     
     def extract_track_params_data(event_rows):
         event_track_params_data = event_rows[["radial_coeff","pitch_coeff","azimuthal_coeff"]].to_numpy(dtype=np.float32)
-        # processed_event_track_params_data = np.column_stack((np.fabs(event_track_params_data[:,1]), np.sign(event_track_params_data[:,1]), event_track_params_data[:,0]))
         return np.pad(event_track_params_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
     
     def extract_hit_classes_data(event_rows):

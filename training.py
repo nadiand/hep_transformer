@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
-import pandas as pd
 
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
@@ -106,7 +105,7 @@ def predict(model, test_loader):
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
         cluster_labels = clustering(pred)
-        event_score = calc_score(cluster_labels[0], track_labels[0])
+        event_score = calc_score(cluster_labels, track_labels)
         score += event_score
 
         for _, e_id in enumerate(event_id):
