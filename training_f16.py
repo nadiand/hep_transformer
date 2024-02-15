@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 import pandas as pd
+from torch.utils.data import DataLoader
 
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders
@@ -72,7 +73,7 @@ def evaluate(model, validation_loader, loss_fn):
     losses = 0.
     intermid_loss = 0.
     with torch.no_grad():
-        for i, data in enumerate(valid_loader):
+        for i, data in enumerate(validation_loader):
             _, hits, track_params, _ = data
 
             # Make prediction
@@ -138,18 +139,9 @@ if __name__ == "__main__":
     NUM_EPOCHS = 20
     EARLY_STOPPING = 50
     MODEL_NAME = "flash"
+    CHUNK_SIZE = 5000*1000
 
     torch.manual_seed(37)  # for reproducibility
-
-    # Load and split dataset into training, validation and test sets, and get dataloaders
-    hits_data, track_params_data, track_classes_data = load_trackml_data(data_path="../../trackml_data_50tracks.csv", normalize=True)
-    dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
-    train_loader, valid_loader, test_loader = get_dataloaders(dataset,
-                                                              train_frac=0.7,
-                                                              valid_frac=0.15,
-                                                              test_frac=0.15,
-                                                              batch_size=1)
-    print("data loaded")
 
     # Transformer model
     transformer = TransformerClassifier(num_encoder_layers=6,
@@ -174,8 +166,26 @@ if __name__ == "__main__":
 
     for epoch in range(NUM_EPOCHS):
         # Train the model
-        train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn, scaler)
-        val_loss = evaluate(transformer, valid_loader, loss_fn)
+        train_losses = []
+        with pd.read_csv("../../trackml_200to500_train.csv", chunksize=CHUNK_SIZE) as reader: #, names=colnames, header=None, dtype=dtypes) as reader:
+            for chunk in reader:
+                hits_data, track_params_data, track_classes_data = load_trackml_data(chunk, chunking=True)
+                train_dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
+                train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
+                loss = train_epoch(transformer, optimizer, train_loader, loss_fn, scaler)
+                train_losses.append(loss)
+        train_loss = np.array(train_losses).mean()
+
+        val_losses = []
+        with pd.read_csv("../../trackml_200to500_valid.csv", chunksize=CHUNK_SIZE) as reader: #, names=colnames, header=None, dtype=dtypes) as reader:
+            for chunk in reader:
+                hits_data, track_params_data, track_classes_data = load_trackml_data(chunk, chunking=True)
+                val_dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
+                validation_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
+                loss = evaluate(transformer, validation_loader, loss_fn)
+                val_losses.append(loss)
+        val_loss = np.array(val_losses).mean()
+
         print(f"Epoch: {epoch}\nVal loss: {val_loss:.8f}, Train loss: {train_loss:.8f}", flush=True)
 
         train_losses.append(train_loss)
@@ -194,9 +204,3 @@ if __name__ == "__main__":
         if count >= EARLY_STOPPING:
             print("Early stopping...")
             break
-
-    preds, score = predict(transformer, test_loader)
-    print(score)
-    preds = list(preds.values())
-    for param in ["theta", "phi", "q"]:
-        plot_heatmap(preds, param, "train")	

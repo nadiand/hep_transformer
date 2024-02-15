@@ -4,6 +4,9 @@ import pandas as pd
 import random
 import argparse
 import matplotlib.pyplot as plt
+from itertools import product
+from collections import Counter
+
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
@@ -141,11 +144,10 @@ def transform_trackml_data(event_id):
     #     ready_data.to_csv('trackml_validation_data_subdivided.csv', mode='a', index=False, header=False)
 
 
-def load_trackml_data(data_path, normalize=False):
-    data = pd.read_csv(data_path)
+def load_trackml_data(data, normalize=False, chunking=False):
+    if not chunking:
+        data = pd.read_csv(data)
     # Find the max number of hits in the batch to pad up to
-    # events = data['event_class'].unique()
-    # event_lens = [len(data[data['event_class'] == event]) for event in events]
     events = data['event_id'].unique()
     event_lens = [len(data[data['event_id'] == event]) for event in events]
     max_num_hits = max(event_lens)
@@ -160,7 +162,6 @@ def load_trackml_data(data_path, normalize=False):
     # Shuffling the data and grouping by event ID
     shuffled_data = data.sample(frac=1)
     data_grouped_by_event = shuffled_data.groupby("event_id")
-    # data_grouped_by_event = data.groupby("event_class")
 
     def extract_hits_data(event_rows):
         # Returns the hit coordinates as a padded sequence; this is the input to the transformer
@@ -194,14 +195,7 @@ def load_trackml_data(data_path, normalize=False):
     return hits_data, track_params_data, hit_classes_data
 
 if __name__ == "__main__":
-    # argparser = argparse.ArgumentParser()
-    # argparser.add_argument('-e', '--event_id')
-    # args = argparser.parse_args()
-    # transform_trackml_data(args.event_id)
-    
-    transform_trackml_data(event_id='21000')
-
-    # rows = {'theta' : [0.3, 0.7], 'phi': [0.2, 0.4], 'particle_id': [1, 1]}
-    # df = pd.DataFrame(rows)
-    # new_df = split_event(df, 21000)
-    
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument('-e', '--event_id')
+    args = argparser.parse_args()
+    transform_trackml_data(args.event_id)
