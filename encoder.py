@@ -1,4 +1,4 @@
-from typing import Optional, Union, Callable, Tuple
+from typing import Optional, Union, Callable
 import torch
 from torch.nn import Module, Linear, LayerNorm, Dropout
 from torch import Tensor
@@ -14,7 +14,6 @@ class TransformerEncoderLayer(Module):
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
         self.self_attn = CausalSelfAttention(nhead, d_model, bias=True, batch_first=batch_first, dropout=dropout)
-        #self.self_attn = FlashSelfAttention(num_heads=nhead, embed_dimension=d_model, bias=True, is_causal=True, dropout=dropout)
         # Implementation of Feedforward model
         self.linear1 = Linear(d_model, dim_feedforward, **factory_kwargs)
         self.dropout = Dropout(dropout)
@@ -83,7 +82,7 @@ class TransformerEncoderLayer(Module):
     # self-attention block
     def _sa_block(self, x: Tensor,
                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
-        x = self.self_attn(x) #, x, x)
+        x = self.self_attn(x)
         return self.dropout1(x)
 
     # feed forward block
@@ -99,40 +98,6 @@ def _get_activation_fn(activation: str) -> Callable[[Tensor], Tensor]:
 
     raise RuntimeError("activation should be relu/gelu, not {}".format(activation))
 
-
-class FlashSelfAttention(Module):
-
-    def __init__(self, num_heads: int, embed_dimension: int, bias: bool=False, is_causal: bool=False, dropout:float=0.0, batch_first: bool=True):
-        super().__init__()
-        assert embed_dimension % num_heads == 0
-        self.dropout = dropout
-        self.num_heads = num_heads
-        self.embed_dimension = embed_dimension
-        self.head_dim = self.embed_dimension // self.num_heads
-        self.is_causal = is_causal
-
-        self.batch_first = batch_first
-
-    def forward(self, key, query, value):
-        batch_size = query.size(0)
-
-        query = query.view(batch_size, -1, self.num_heads, self.head_dim).transpose(1, 2)
-        key = key.view(batch_size, -1, self.num_heads, self.head_dim).transpose(1, 2)
-        value = value.view(batch_size, -1, self.num_heads, self.head_dim).transpose(1, 2)
-
-        if self.training:
-            dropout = self.dropout
-            is_causal = self.is_causal
-        else:
-            dropout = 0.0
-            is_causal = False
-
-        with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):
-            y = F.scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=dropout, is_causal=is_causal)
-        
-        y = y.transpose(1, 2).view(batch_size, -1, self.num_heads * self.head_dim)
-
-        return y
     
 class CausalSelfAttention(Module):
     """
@@ -178,6 +143,6 @@ class CausalSelfAttention(Module):
         with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):
             y = F.scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=dropout, is_causal=is_causal)
     
-        y = y.transpose(1, 2).view(batch_size, -1, self.num_heads * head_dim) #put view back instead of resape
+        y = y.transpose(1, 2).view(batch_size, -1, self.num_heads * head_dim)
 
         return y
