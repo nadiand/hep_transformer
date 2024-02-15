@@ -165,8 +165,7 @@ def calc_score(pred_lbl, true_lbl):
     for i in range(len(true_lbl)): #go over every single hit from the event
         truth_rows, pred_rows = [], []
         for ind, part in enumerate(true_lbl[i]):
-            truth_rows.append((ind, part[0].item(), 1)) #assigning weight=1 to every hit
-            # truth_rows.append((ind, part.item(), 1)) # for 2D data
+            truth_rows.append((ind, part.item(), 1))
 
         for ind, pred in enumerate(pred_lbl[i]):
             pred_rows.append((ind, pred.item()))
