@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
+import pandas as pd
 
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders
@@ -125,6 +126,11 @@ def predict(model, test_loader):
 
         for _, e_id in enumerate(event_id):
             predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
+            to_store = []
+            for i in range(len(hits[0])):
+                to_store.append([hits[0][i][0].item(), hits[0][i][1].item(), hits[0][i][2].item(), cluster_labels[0][i].item(), track_labels[0][i][0].item(), event_id.item()])
+            df = pd.DataFrame(to_store)
+            df.to_csv('predictions.csv', mode='a', index=False, header=False)
 
     return predictions, score/len(test_loader)
 
