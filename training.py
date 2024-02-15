@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
-from hdbscan import HDBSCAN
+import pandas as pd
 
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
@@ -13,8 +13,7 @@ from plotting import *
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def clustering(pred_params):
-    # clustering_algorithm = HDBSCAN()
-    clustering_algorithm = AgglomerativeClustering(n_clusters=None, distance_threshold=1.15)
+    clustering_algorithm = AgglomerativeClustering(n_clusters=None, distance_threshold=0.1)
     cluster_labels = []
     for _, event_prediction in enumerate(pred_params):
         regressed_params = np.array(event_prediction.tolist())
@@ -33,6 +32,7 @@ def train_epoch(model, optim, train_loader, loss_fn):
     torch.set_grad_enabled(True)
     model.train()
     losses = 0.
+
     for data in train_loader:
         _, hits, track_params, _ = data
         optim.zero_grad()
@@ -75,11 +75,10 @@ def evaluate(model, validation_loader, loss_fn):
 
             pred = torch.unsqueeze(pred[~padding_mask], 0)
             track_params = torch.unsqueeze(track_params[~padding_mask], 0)
-
-            # Calculate loss and use it to update weights
+            
             loss = loss_fn(pred, track_params)
             losses += loss.item()
-
+            
     return losses / len(validation_loader)
 
 def predict(model, test_loader):
@@ -98,7 +97,7 @@ def predict(model, test_loader):
         hits = hits.to(DEVICE)
         track_params = track_params.to(DEVICE)
         track_labels = track_labels.to(DEVICE)
-        
+
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         pred = model(hits, padding_mask)
 
@@ -119,11 +118,12 @@ if __name__ == "__main__":
     NUM_EPOCHS = 500
     EARLY_STOPPING = 100
     MODEL_NAME = "redvid_10to50_linear"
+    MAX_NUM_HITS = 500
 
     torch.manual_seed(37)  # for reproducibility
 
     # Load and split dataset into training, validation and test sets, and get dataloaders
-    hits_data, track_params_data, track_classes_data = load_linear_3d_data(data_path="../../hits_and_tracks_3d_10to50_events_all.csv", max_num_hits=500)
+    hits_data, track_params_data, track_classes_data = load_linear_3d_data(data_path="../../hits_and_tracks_3d_10to50_events_all.csv", max_num_hits=MAX_NUM_HITS)
     dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
     train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,
@@ -155,9 +155,12 @@ if __name__ == "__main__":
     for epoch in range(NUM_EPOCHS):
         # Train the model
         train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn)
-        val_loss = evaluate(transformer, valid_loader, loss_fn)
-        print(f"Epoch: {epoch}\nVal loss: {val_loss:.8f}, Train loss: {train_loss:.8f}", flush=True)
 
+        # Evaluate using validation split
+        val_loss = evaluate(transformer, valid_loader, loss_fn)
+
+        # Bookkeeping
+        print(f"Epoch: {epoch}\nVal loss: {val_loss:.8f}, Train loss: {train_loss:.8f}", flush=True)
         train_losses.append(train_loss)
         val_losses.append(val_loss)
 
@@ -174,9 +177,3 @@ if __name__ == "__main__":
         if count >= EARLY_STOPPING:
             print("Early stopping...")
             break
-
-    # preds, score = predict(transformer, test_loader)
-    # print(score)
-    # preds = list(preds.values())
-    # for param in ["theta", "phi", "q"]:
-    #     plot_heatmap(preds, param, "train")

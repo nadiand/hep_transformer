@@ -1,7 +1,8 @@
 import torch
 from model import TransformerClassifier
-from training import predict
-from dataset import HitsDataset, get_dataloaders
+from training_f16 import predict
+from dataset import HitsDataset, get_dataloaders, load_linear_3d_data, load_linear_2d_data, load_curved_3d_data
+
 from plotting import *
 from trackml_data import load_trackml_data
 
@@ -15,7 +16,8 @@ transformer = TransformerClassifier(num_encoder_layers=6,
                                     dim_feedforward=128,
                                     dropout=0.1)
 transformer = transformer.to(DEVICE)
-checkpoint = torch.load("test_last", map_location=torch.device('cpu'))
+
+checkpoint = torch.load("test_best", map_location=torch.device('cpu'))
 transformer.load_state_dict(checkpoint['model_state_dict'])
 pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
 print("Total trainable params: {}".format(pytorch_total_params))
