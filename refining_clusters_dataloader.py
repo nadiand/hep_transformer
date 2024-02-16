@@ -48,7 +48,7 @@ def load_calibration_data(data_path):
         label_data = rows["particle_id"].to_numpy(dtype=np.float32)
         data = Counter(label_data)
         majority_label = data.most_common(1)[0][0]
-        track_belonging = np.array([label == majority_label for label in label_data], dtype=int)
+        track_belonging = np.array([label == majority_label for label in label_data], dtype=int).astype(np.float32)
         return np.pad(track_belonging, [(0, max_num_hits-len(rows))], "constant", constant_values=PAD_TOKEN)
 
     # Get the hits, track params and their weights as sequences padded up to a max length
