@@ -10,16 +10,6 @@ from refining_clusters_dataloader import ClustersDataset, load_calibration_data,
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def clustering(pred_params):
-    clustering_algorithm = AgglomerativeClustering(n_clusters=None, distance_threshold=0.1)
-    cluster_labels = []
-    for _, event_prediction in enumerate(pred_params):
-        regressed_params = np.array(event_prediction.tolist())
-        event_cluster_labels = clustering_algorithm.fit_predict(regressed_params)
-        cluster_labels.append(event_cluster_labels)
-
-    cluster_labels = [torch.from_numpy(cl_lbl).int() for cl_lbl in cluster_labels]
-    return cluster_labels
 
 def train_epoch(model, optim, train_loader, loss_fn):
     '''
@@ -32,20 +22,20 @@ def train_epoch(model, optim, train_loader, loss_fn):
     losses = 0.
 
     for data in train_loader:
-        _, hits, track_params, _ = data
+        _, hits, labels = data
         optim.zero_grad()
 
         # Make prediction
         hits = hits.to(DEVICE)
-        track_params = track_params.to(DEVICE)
+        labels = labels.to(DEVICE)
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         pred = model(hits, padding_mask)
 
         pred = torch.unsqueeze(pred[~padding_mask], 0)
-        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
+        labels = torch.unsqueeze(labels[~padding_mask], 0)
 
         # Calculate loss and use it to update weights
-        loss = loss_fn(pred, track_params)
+        loss = loss_fn(pred, labels)
         loss.backward()
         optim.step()
         losses += loss.item()
@@ -62,60 +52,42 @@ def evaluate(model, validation_loader, loss_fn):
     losses = 0.
     with torch.no_grad():
         for data in validation_loader:
-            _, hits, track_params, _ = data
+            _, hits, labels = data
 
             # Make prediction
             hits = hits.to(DEVICE)
-            track_params = track_params.to(DEVICE)
+            labels = labels.to(DEVICE)
             
             padding_mask = (hits == PAD_TOKEN).all(dim=2)
             pred = model(hits, padding_mask)
 
-            # pred = torch.unsqueeze(pred[~padding_mask], 0)
-            # track_params = torch.unsqueeze(track_params[~padding_mask], 0)
+            pred = torch.unsqueeze(pred[~padding_mask], 0)
+            track_params = torch.unsqueeze(track_params[~padding_mask], 0)
             
-            loss = loss_fn(pred, track_params)
+            loss = loss_fn(pred, labels)
             losses += loss.item()
             
     return losses / len(validation_loader)
 
-def predict(model, test_loader):
+def predict(model, cluster_hits):
     '''
     Evaluates the network on the test data. Returns the predictions
     '''
     # Get the network in evaluation mode
     torch.set_grad_enabled(False)
     model.eval()
-    predictions = {}
-    score = 0.
-    for data in test_loader:
-        event_id, hits, track_params, track_labels = data
 
-        # Make prediction
-        hits = hits.to(DEVICE)
-        track_params = track_params.to(DEVICE)
-        track_labels = track_labels.to(DEVICE)
+    # Make prediction
+    cluster_hits = cluster_hits.to(DEVICE)
 
-        padding_mask = (hits == PAD_TOKEN).all(dim=2)
-        pred = model(hits, padding_mask)
+    padding_mask = (cluster_hits == PAD_TOKEN).all(dim=2)
+    pred = model(cluster_hits, padding_mask)
 
-        pred = torch.unsqueeze(pred[~padding_mask], 0)
-        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
-        track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
+    cluster_hits = torch.unsqueeze(pred[~padding_mask], 0)
+    pred = torch.unsqueeze(pred[~padding_mask], 0)
+    refined_hits = cluster_hits[pred]
 
-        cluster_labels = clustering(pred)
-        event_score = calc_score(cluster_labels, track_labels)
-        score += event_score
-
-        for _, e_id in enumerate(event_id):
-            predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
-            to_store = []
-            for i in range(len(hits[0])):
-                to_store.append([hits[0][i][0].item(), hits[0][i][1].item(), hits[0][i][2].item(), cluster_labels[0][i].item(), track_labels[0][i][0].item(), event_id.item()])
-            df = pd.DataFrame(to_store)
-            df.to_csv('predictions.csv', mode='a', index=False, header=False)
-
-    return predictions, score/len(test_loader)
+    return refined_hits
 
 if __name__ == "__main__":
     NUM_EPOCHS = 500
@@ -157,8 +129,11 @@ if __name__ == "__main__":
         # Train the model
         train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn)
 
+        # Evaluate using validation split
+        val_loss = evaluate(transformer, valid_loader, loss_fn)
+
         # Bookkeeping
-        print(f"Epoch: {epoch}, Train loss: {train_loss:.8f}", flush=True)
+        print(f"Epoch: {epoch}\nVal loss: {val_loss:.8f}, Train loss: {train_loss:.8f}", flush=True)
         train_losses.append(train_loss)
 
         if val_loss < min_val_loss:
