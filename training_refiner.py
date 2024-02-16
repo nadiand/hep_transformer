@@ -3,7 +3,6 @@ import torch.nn as nn
 import numpy as np
 
 from refiner_model import RefinerTransformer, PAD_TOKEN, save_model
-from scoring import calc_score
 from refining_clusters_dataloader import ClustersDataset, load_calibration_data, get_dataloaders
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -59,15 +58,15 @@ def evaluate(model, validation_loader, loss_fn):
             padding_mask = (hits == PAD_TOKEN).all(dim=2)
             pred = model(hits, padding_mask)
 
-            pred = torch.unsqueeze(pred[~padding_mask], 0)
-            track_params = torch.unsqueeze(track_params[~padding_mask], 0)
+            pred = torch.flatten(pred[~padding_mask])
+            labels = labels[~padding_mask]
             
             loss = loss_fn(pred, labels)
             losses += loss.item()
             
     return losses / len(validation_loader)
 
-def predict(model, cluster_hits):
+def predict(model, cluster_hits, cluster_ids):
     '''
     Evaluates the network on the test data. Returns the predictions
     '''
@@ -78,24 +77,28 @@ def predict(model, cluster_hits):
     # Make prediction
     cluster_hits = cluster_hits.to(DEVICE)
 
+    # data = Counter(cluster_ids)
+    # majority_label = data.most_common(1)[0][0]
+    # track_belonging = np.array([label == majority_label for label in label_data], dtype=int).astype(np.float32)
+
     padding_mask = (cluster_hits == PAD_TOKEN).all(dim=2)
     pred = model(cluster_hits, padding_mask)
 
     cluster_hits = torch.unsqueeze(pred[~padding_mask], 0)
-    pred = torch.unsqueeze(pred[~padding_mask], 0)
+    pred = pred[~padding_mask]
     refined_hits = cluster_hits[pred]
 
     return refined_hits
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 5
+    NUM_EPOCHS = 2
     EARLY_STOPPING = 100
     MODEL_NAME = "refiner"
 
     torch.manual_seed(37)  # for reproducibility
 
-    # Load dataset into dataloader
-    hits_data, labels_data = load_calibration_data(data_path="predictions.csv")
+    # Load dataset into dataloader and split into train and validation set
+    hits_data, labels_data = load_calibration_data(data_path="predictions.csv", normalize=True)
     dataset = ClustersDataset(hits_data, labels_data)
     train_loader, valid_loader = get_dataloaders(dataset,
                                                 train_frac=0.8,
