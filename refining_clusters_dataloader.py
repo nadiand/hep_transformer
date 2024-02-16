@@ -1,9 +1,33 @@
 import torch
+from torch.utils.data import DataLoader, Dataset, random_split
 import numpy as np
 import pandas as pd
 from collections import Counter
 
 from model import PAD_TOKEN
+
+
+class ClustersDataset(Dataset):
+
+    def __init__(self, hit_clusters, labels):
+        self.hit_clusters = hit_clusters
+        self.labels = labels
+        self.total_clusters = self.__len__()
+
+    def __len__(self):
+        return self.hit_clusters.shape[0]
+
+    def __getitem__(self, idx):
+        return idx, self.hit_clusters[idx], self.labels[idx]
+    
+
+def get_dataloaders(dataset, train_frac, valid_frac, batch_size):
+    train_set, valid_set = random_split(dataset, [train_frac, valid_frac], generator=torch.Generator().manual_seed(37))
+
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=False)
+    valid_loader = DataLoader(valid_set, batch_size=batch_size, shuffle=False)
+
+    return train_loader, valid_loader
 
 
 def load_calibration_data(data_path):
