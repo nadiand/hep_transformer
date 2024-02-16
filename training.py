@@ -5,9 +5,7 @@ from sklearn.cluster import AgglomerativeClustering
 
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
-from scoring import calc_score, calc_score_trackml
-from trackml_data import load_trackml_data
-from plotting import *
+from scoring import calc_score
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -72,8 +70,8 @@ def evaluate(model, validation_loader, loss_fn):
             padding_mask = (hits == PAD_TOKEN).all(dim=2)
             pred = model(hits, padding_mask)
 
-            pred = torch.unsqueeze(pred[~padding_mask], 0)
-            track_params = torch.unsqueeze(track_params[~padding_mask], 0)
+            # pred = torch.unsqueeze(pred[~padding_mask], 0)
+            # track_params = torch.unsqueeze(track_params[~padding_mask], 0)
             
             loss = loss_fn(pred, track_params)
             losses += loss.item()
@@ -116,13 +114,13 @@ def predict(model, test_loader):
 if __name__ == "__main__":
     NUM_EPOCHS = 500
     EARLY_STOPPING = 100
-    MODEL_NAME = "redvid_10to50_linear"
-    MAX_NUM_HITS = 500
+    MODEL_NAME = "test"
+    MAX_NUM_HITS = 100
 
     torch.manual_seed(37)  # for reproducibility
 
     # Load and split dataset into training, validation and test sets, and get dataloaders
-    hits_data, track_params_data, track_classes_data = load_linear_3d_data(data_path="../../hits_and_tracks_3d_10to50_events_all.csv", max_num_hits=MAX_NUM_HITS)
+    hits_data, track_params_data, track_classes_data = load_curved_3d_data(data_path="hits_and_tracks_3d_3curved_events_all.csv", max_num_hits=MAX_NUM_HITS)
     dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
     train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,

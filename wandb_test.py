@@ -1,7 +1,7 @@
 import torch
 from model import TransformerClassifier
 from dataset import HitsDataset, get_dataloaders, load_linear_3d_data, load_linear_2d_data, load_curved_3d_data
-from training_f16 import *
+from training_flash import *
 import wandb
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
