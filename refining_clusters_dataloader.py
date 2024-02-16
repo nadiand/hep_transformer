@@ -30,8 +30,14 @@ def get_dataloaders(dataset, train_frac, valid_frac, batch_size):
     return train_loader, valid_loader
 
 
-def load_calibration_data(data_path):
+def load_calibration_data(data_path, normalize=False):
     data = pd.read_csv(data_path)
+
+    if normalize:
+        for col in ["x", "y", "z"]:
+            mean = data[col].mean()
+            std = data[col].std()
+            data[col] = (data[col] - mean)/std
 
     # Shuffling the data and grouping by event ID
     shuffled_data = data.sample(frac=1)
