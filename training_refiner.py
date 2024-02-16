@@ -1,10 +1,8 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from sklearn.cluster import AgglomerativeClustering
-import pandas as pd
 
-from model import TransformerClassifier, PAD_TOKEN, save_model
+from refiner_model import RefinerTransformer, PAD_TOKEN, save_model
 from scoring import calc_score
 from refining_clusters_dataloader import ClustersDataset, load_calibration_data, get_dataloaders
 
@@ -31,8 +29,8 @@ def train_epoch(model, optim, train_loader, loss_fn):
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         pred = model(hits, padding_mask)
 
-        pred = torch.unsqueeze(pred[~padding_mask], 0)
-        labels = torch.unsqueeze(labels[~padding_mask], 0)
+        pred = torch.flatten(pred[~padding_mask])
+        labels = labels[~padding_mask]
 
         # Calculate loss and use it to update weights
         loss = loss_fn(pred, labels)
@@ -90,15 +88,15 @@ def predict(model, cluster_hits):
     return refined_hits
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 500
+    NUM_EPOCHS = 5
     EARLY_STOPPING = 100
-    MODEL_NAME = "test"
+    MODEL_NAME = "refiner"
 
     torch.manual_seed(37)  # for reproducibility
 
     # Load dataset into dataloader
-    hits_data, track_params_data, track_classes_data = load_calibration_data(data_path="predictions.csv")
-    dataset = ClustersDataset(hits_data, track_params_data, track_classes_data)
+    hits_data, labels_data = load_calibration_data(data_path="predictions.csv")
+    dataset = ClustersDataset(hits_data, labels_data)
     train_loader, valid_loader = get_dataloaders(dataset,
                                                 train_frac=0.8,
                                                 valid_frac=0.2,
@@ -106,12 +104,12 @@ if __name__ == "__main__":
     print("data loaded")
 
     # Transformer model
-    transformer = TransformerClassifier(num_encoder_layers=6,
+    transformer = RefinerTransformer(num_encoder_layers=3,
                                         d_model=32,
                                         n_head=4,
                                         input_size=3,
-                                        output_size=3,
-                                        dim_feedforward=128,
+                                        output_size=1,
+                                        dim_feedforward=64,
                                         dropout=0.1)
     transformer = transformer.to(DEVICE)
     pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
