@@ -70,8 +70,8 @@ def evaluate(model, validation_loader, loss_fn):
             padding_mask = (hits == PAD_TOKEN).all(dim=2)
             pred = model(hits, padding_mask)
 
-            # pred = torch.unsqueeze(pred[~padding_mask], 0)
-            # track_params = torch.unsqueeze(track_params[~padding_mask], 0)
+            pred = torch.unsqueeze(pred[~padding_mask], 0)
+            track_params = torch.unsqueeze(track_params[~padding_mask], 0)
             
             loss = loss_fn(pred, track_params)
             losses += loss.item()

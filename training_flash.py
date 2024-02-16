@@ -149,7 +149,8 @@ if __name__ == "__main__":
                                         input_size=3,
                                         output_size=3,
                                         dim_feedforward=128,
-                                        dropout=0.1)
+                                        dropout=0.1,
+                                        use_flashattn=True)
     transformer = transformer.to(DEVICE)
     pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
     print("Total trainable params: {}".format(pytorch_total_params))
