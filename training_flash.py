@@ -9,6 +9,7 @@ from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders
 from scoring import calc_score_trackml
 from trackml_data import load_trackml_data
+from training_refiner import refine
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -133,6 +134,50 @@ def predict(model, test_loader):
             df.to_csv('predictions.csv', mode='a', index=False, header=False)
 
     return predictions, score/len(test_loader)
+
+
+def predict_with_refined_clusters(model, test_loader, refiner):
+    '''
+    Evaluates the network on the test data. Returns the predictions
+    '''
+    # Get the network in evaluation mode
+    torch.set_grad_enabled(False)
+    model.eval()
+    predictions = {}
+    score = 0.
+    for data in test_loader:
+        event_id, hits, track_params, track_labels = data
+
+        # Make prediction
+        hits = hits.to(DEVICE)
+        track_params = track_params.to(DEVICE)
+        track_labels = track_labels.to(DEVICE)
+        padding_mask = (hits == PAD_TOKEN).all(dim=2)
+
+        hits = torch.unsqueeze(hits[~padding_mask], 0)
+        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
+        track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
+
+        with torch.cuda.amp.autocast():
+            pred = model(hits, padding_mask)
+
+        cluster_labels = clustering(pred)[0]
+        indices = np.argsort(np.array(cluster_labels))
+        sorted_cluster_labels = cluster_labels[indices]
+        sorted_hits = torch.unsqueeze(hits[0][indices], 0)
+        sorted_track_labels = track_labels[0][indices]
+
+        refiner_pred = refine(refiner, sorted_hits, sorted_cluster_labels)
+        refined_cluster_labels = sorted_cluster_labels[refiner_pred]
+
+        event_score = calc_score_trackml(refined_cluster_labels, sorted_track_labels)
+        score += event_score
+
+        for _, e_id in enumerate(event_id):
+            predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
+
+    return predictions, score/len(test_loader)
+
 
 if __name__ == "__main__":
     NUM_EPOCHS = 20
