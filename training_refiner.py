@@ -66,29 +66,27 @@ def evaluate(model, validation_loader, loss_fn):
             
     return losses / len(validation_loader)
 
-def predict(model, cluster_hits, cluster_ids):
+
+def refine(model, hits, cluster_ids):
     '''
     Evaluates the network on the test data. Returns the predictions
     '''
     # Get the network in evaluation mode
     torch.set_grad_enabled(False)
     model.eval()
+    THRESHOLD = 0.5
 
-    # Make prediction
-    cluster_hits = cluster_hits.to(DEVICE)
+    unique_cluster_ids = cluster_ids.unique()
+    predictions = []
+    for cl_id in unique_cluster_ids:
+        indices = cluster_ids == cl_id
+        hits_with_id = torch.unsqueeze(hits[0][indices], 0)
+        padding_mask = (hits_with_id == PAD_TOKEN).all(dim=2)
+        pred = model(hits_with_id, padding_mask)
+        predictions.extend(torch.flatten(pred>THRESHOLD).tolist())
 
-    # data = Counter(cluster_ids)
-    # majority_label = data.most_common(1)[0][0]
-    # track_belonging = np.array([label == majority_label for label in label_data], dtype=int).astype(np.float32)
+    return predictions
 
-    padding_mask = (cluster_hits == PAD_TOKEN).all(dim=2)
-    pred = model(cluster_hits, padding_mask)
-
-    cluster_hits = torch.unsqueeze(pred[~padding_mask], 0)
-    pred = pred[~padding_mask]
-    refined_hits = cluster_hits[pred]
-
-    return refined_hits
 
 if __name__ == "__main__":
     NUM_EPOCHS = 2
