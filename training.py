@@ -103,7 +103,7 @@ def predict(model, test_loader):
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
         cluster_labels = clustering(pred)
-        event_score = calc_score(cluster_labels, track_labels)
+        event_score = calc_score(cluster_labels[0], track_labels[0])
         score += event_score
 
         for _, e_id in enumerate(event_id):
@@ -112,7 +112,7 @@ def predict(model, test_loader):
     return predictions, score/len(test_loader)
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 500
+    NUM_EPOCHS = 5
     EARLY_STOPPING = 100
     MODEL_NAME = "test"
     MAX_NUM_HITS = 100

@@ -121,7 +121,7 @@ def predict(model, test_loader):
             pred = model(hits, padding_mask)
 
         cluster_labels = clustering(pred)
-        event_score = calc_score_trackml(cluster_labels, track_labels)
+        event_score = calc_score_trackml(cluster_labels[0], track_labels[0])
         score += event_score
 
         for _, e_id in enumerate(event_id):

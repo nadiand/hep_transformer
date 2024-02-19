@@ -161,21 +161,18 @@ def calc_score(pred_lbl, true_lbl):
     pred_lbl is a tensor containing predicted cluster IDs from a single event
     true_lbl is a tensor containing the true cluster IDs from a single event (track_id from dataset)
     """
-    score = 0.
-    for i in range(len(true_lbl)): #go over every single hit from the event
-        truth_rows, pred_rows = [], []
-        for ind, part in enumerate(true_lbl[i]):
-            truth_rows.append((ind, part.item(), 1))
+    truth_rows, pred_rows = [], []
+    for ind, part in enumerate(true_lbl):
+        truth_rows.append((ind, part.item(), 1))
 
-        for ind, pred in enumerate(pred_lbl[i]):
-            pred_rows.append((ind, pred.item()))
+    for ind, pred in enumerate(pred_lbl):
+        pred_rows.append((ind, pred.item()))
 
-        truth = pd.DataFrame(truth_rows)
-        truth.columns = ['hit_id', 'particle_id', 'weight']
-        submission = pd.DataFrame(pred_rows)
-        submission.columns = ['hit_id', 'track_id']
-        score += score_event(truth, submission)
-    return score/len(true_lbl)
+    truth = pd.DataFrame(truth_rows)
+    truth.columns = ['hit_id', 'particle_id', 'weight']
+    submission = pd.DataFrame(pred_rows)
+    submission.columns = ['hit_id', 'track_id']
+    return score_event(truth, submission)
 
 def calc_score_trackml(pred_lbl, true_lbl):
     """
