@@ -6,7 +6,7 @@ import pandas as pd
 
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
-from scoring import calc_score
+from scoring import calc_score, calc_score_trackml
 from training_refiner import refine
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -103,6 +103,7 @@ def predict(model, test_loader):
         pred = torch.unsqueeze(pred[~padding_mask], 0)
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
+        hits = torch.unsqueeze(hits[~padding_mask], 0)
 
         cluster_labels = clustering(pred)
         event_score = calc_score(cluster_labels, track_labels)
@@ -112,7 +113,7 @@ def predict(model, test_loader):
             predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
             to_store = []
             for i in range(len(hits[0])):
-                to_store.append([hits[0][i][0].item(), hits[0][i][1].item(), hits[0][i][2].item(), cluster_labels[0][i].item(), track_labels[0][i][0].item(), event_id.item()])
+                to_store.append([hits[0][i][0].item(), hits[0][i][1].item(), hits[0][i][2].item(), cluster_labels[0][i].item(), track_labels[0][i].item(), e_id.item()])
             df = pd.DataFrame(to_store)
             df.to_csv('predictions.csv', mode='a', index=False, header=False)
 
@@ -148,6 +149,8 @@ def predict_with_refined_clusters(model, test_loader, refiner):
         refiner_pred = refine(refiner, sorted_hits, sorted_cluster_labels)
         refined_cluster_labels = sorted_cluster_labels[refiner_pred]
 
+        # print(refined_cluster_labels)
+        # print(sorted_track_labels)
         event_score = calc_score(refined_cluster_labels, sorted_track_labels)
         score += event_score
 

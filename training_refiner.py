@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
+from torchvision.ops.focal_loss import sigmoid_focal_loss
 
 from refiner_model import RefinerTransformer, PAD_TOKEN, save_model
 from refining_clusters_dataloader import ClustersDataset, load_calibration_data, get_dataloaders
@@ -32,7 +33,7 @@ def train_epoch(model, optim, train_loader, loss_fn):
         labels = labels[~padding_mask]
 
         # Calculate loss and use it to update weights
-        loss = loss_fn(pred, labels)
+        loss = loss_fn(pred, labels, reduction='mean')
         loss.backward()
         optim.step()
         losses += loss.item()
@@ -61,7 +62,7 @@ def evaluate(model, validation_loader, loss_fn):
             pred = torch.flatten(pred[~padding_mask])
             labels = labels[~padding_mask]
             
-            loss = loss_fn(pred, labels)
+            loss = loss_fn(pred, labels, reduction='mean')
             losses += loss.item()
             
     return losses / len(validation_loader)
@@ -89,7 +90,7 @@ def refine(model, hits, cluster_ids):
 
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 2
+    NUM_EPOCHS = 1
     EARLY_STOPPING = 100
     MODEL_NAME = "refiner"
 
@@ -116,7 +117,7 @@ if __name__ == "__main__":
     pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
     print("Total trainable params: {}".format(pytorch_total_params))
 
-    loss_fn = nn.BCELoss()
+    loss_fn = sigmoid_focal_loss
     optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
 
     # Training
