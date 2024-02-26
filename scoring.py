@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from collections import Counter
 
 def _analyze_tracks(truth, submission):
     """Compute the majority particle, hit counts, and weight for each track.
@@ -118,41 +119,46 @@ def score_event(truth, submission):
     return tracks['major_weight'][good_track].sum()
 
 
-def false_positive_rate(pred_lbl, true_lbl):
-    fp_rate = 0
-    for i in range(len(true_lbl)): #go over every single hit from the event
-        truth_rows, pred_rows = [], []
-        for ind, part in enumerate(true_lbl[i]):
-            truth_rows.append((ind, part[0].item(), part[1].item()))
+def fp_fn_rate(pred_lbl, true_lbl):
+    truth_rows, pred_rows = [], []
+    for ind, part in enumerate(true_lbl):
+        truth_rows.append((ind, part.item(), 1))
 
-        for ind, pred in enumerate(pred_lbl[i]):
-            pred_rows.append((ind, pred.item()))
+    for _, pred in enumerate(pred_lbl):
+        pred_rows.append(pred.item())
 
-        truth = pd.DataFrame(truth_rows)
-        truth.columns = ['hit_id', 'particle_id', 'weight']
-        submission = pd.DataFrame(pred_rows)
-        submission.columns = ['hit_id', 'track_id']
-        
-        tracks_info = _analyze_tracks(truth, submission)
-        print(tracks_info)
+    df = pd.DataFrame(truth_rows)
+    df.columns = ['hit_id', 'particle_id', 'weight']
+    df['cluster_id'] = pred_rows
 
-        true_negatives, false_positives = [], []
-        for tid, pid in enumerate(tracks_info['major_particle_id']):
-            hits_not_tid = submission[submission['track_id'] != tid]['hit_id'].values
-            hits_not_pid = truth[truth['particle_id'] != pid]['hit_id'].values
-            true_negatives_pid = len([value for value in hits_not_tid if value in hits_not_pid])
-            true_negatives.append(true_negatives_pid)
+    total_nr_hits = len(df['hit_id'])
 
-            hits_tid = submission[submission['track_id'] == tid]['hit_id'].values
-            false_positives_pid = len([value for value in hits_tid if value in hits_not_pid])
-            false_positives.append(false_positives_pid)
+    grouped_df = df.groupby('cluster_id')
 
+    def extract_fps(rows):
+        label_data = rows["particle_id"].to_numpy(dtype=np.float32)
+        data = Counter(label_data)
+        majority_label = data.most_common(1)[0][0]
+        track_belonging = np.array([label == majority_label for label in label_data], dtype=int).astype(np.float32)
+        fps = len(track_belonging[track_belonging == False])
+        return fps
+    
+    fp_rate = (grouped_df.apply(extract_fps)).sum()/total_nr_hits
+    print(fp_rate)
 
-        print(false_positives, true_negatives)
-        fp_rates = np.divide(false_positives, [sum(x) for x in zip(false_positives, true_negatives)])
-        print(fp_rates)
-        fp_rate += np.mean(fp_rates)
-    return np.mean(fp_rate)
+    grouped_df = df.groupby('particle_id')
+
+    def extract_fns(rows):
+        label_data = rows["cluster_id"].to_numpy(dtype=np.float32)
+        data = Counter(label_data)
+        majority_label = data.most_common(1)[0][0]
+        track_belonging = np.array([label == majority_label for label in label_data], dtype=int).astype(np.float32)
+        fns = len(track_belonging[track_belonging == False])
+        return fns
+    
+    fn_rate = (grouped_df.apply(extract_fns)).sum()/total_nr_hits
+    print(fn_rate)
+    return fp_rate, fn_rate
 
         
 
