@@ -33,9 +33,9 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
     model.train()
     losses = 0.
     intermid_loss = 0.
+    optim.zero_grad()
     for i, data in enumerate(train_loader):
         _, hits, track_params, _ = data
-        optim.zero_grad()
 
         # Move to CUDA
         hits = hits.to(DEVICE)
@@ -59,6 +59,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
             scaler.update()
             losses += mean_loss.item()
             intermid_loss = 0.
+            optim.zero_grad()
 
     return losses / len(train_loader)
 
