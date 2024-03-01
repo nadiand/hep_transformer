@@ -41,13 +41,9 @@ def transform_trackml_data(event_id, split=False):
         final_data.to_csv('trackml_validation_data_subdivided.csv', mode='a', index=False, header=False)
 
 
-def load_trackml_data(data, normalize=False, chunking=False):
+def load_trackml_data(data, max_num_hits, normalize=False, chunking=False):
     if not chunking:
         data = pd.read_csv(data)
-    # Find the max number of hits in the batch to pad up to
-    events = data['event_id'].unique()
-    event_lens = [len(data[data['event_id'] == event]) for event in events]
-    max_num_hits = max(event_lens)
 
     # Normalize the data if applicable
     if normalize:
@@ -90,6 +86,42 @@ def load_trackml_data(data, normalize=False, chunking=False):
     hit_classes_data = torch.tensor(np.stack(grouped_hit_classes_data.values))
 
     return hits_data, track_params_data, hit_classes_data
+
+
+def load_preprocessed_trackml_data(data_path, max_num_hits):
+    data = pd.read_csv(data_path)
+
+    # Shuffling the data and grouping by event ID
+    shuffled_data = data.sample(frac=1)
+    data_grouped_by_event = shuffled_data.groupby("event_id")
+
+    def extract_hits_data(event_rows):
+        # Returns the hit coordinates as a padded sequence; this is the input to the transformer
+        event_hit_data = event_rows[["x", "y", "z"]].to_numpy(dtype=np.float32)
+        return np.pad(event_hit_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
+
+    def extract_track_params_data(event_rows):
+        # Returns the track parameters as a padded sequence; this is what the transformer must regress
+        event_track_params_data = event_rows[["theta","phi","q"]].to_numpy(dtype=np.float32)
+        return np.pad(event_track_params_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
+
+    def extract_hit_classes_data(event_rows):
+        # Returns the particle information as a padded sequence; this is used for weighting in the calculation of trackML score
+        event_hit_classes_data = event_rows[["particle_id","weight"]].to_numpy(dtype=np.float32)
+        return np.pad(event_hit_classes_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
+
+    # Get the hits, track params and their weights as sequences padded up to a max length
+    grouped_hits_data = data_grouped_by_event.apply(extract_hits_data)
+    grouped_track_params_data = data_grouped_by_event.apply(extract_track_params_data)
+    grouped_hit_classes_data = data_grouped_by_event.apply(extract_hit_classes_data)
+
+    # Stack them together into one tensor
+    hits_data = torch.tensor(np.stack(grouped_hits_data.values))
+    track_params_data = torch.tensor(np.stack(grouped_track_params_data.values))
+    hit_classes_data = torch.tensor(np.stack(grouped_hit_classes_data.values))
+
+    return hits_data, track_params_data, hit_classes_data
+
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()
