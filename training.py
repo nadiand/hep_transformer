@@ -9,8 +9,8 @@ from scoring import calc_score, calc_score_trackml
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def clustering(pred_params):
-    clustering_algorithm = AgglomerativeClustering(n_clusters=None, distance_threshold=0.1)
+def clustering(pred_params, dist_thresh):
+    clustering_algorithm = AgglomerativeClustering(n_clusters=None, distance_threshold=dist_thresh)
     cluster_labels = []
     for _, event_prediction in enumerate(pred_params):
         regressed_params = np.array(event_prediction.tolist())
@@ -78,7 +78,7 @@ def evaluate(model, validation_loader, loss_fn):
             
     return losses / len(validation_loader)
 
-def predict(model, test_loader):
+def predict(model, test_loader, dist_thresh):
     '''
     Evaluates the network on the test data. Returns the predictions
     '''
@@ -102,7 +102,7 @@ def predict(model, test_loader):
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
-        cluster_labels = clustering(pred)
+        cluster_labels = clustering(pred, dist_thresh)
         event_score = calc_score_trackml(cluster_labels[0], track_labels[0])
         score += event_score
 
