@@ -49,7 +49,7 @@ def predict_with_stats(model, test_loader):
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
         difference = loss_fn(pred, track_params)
-        pred_true_differences.append(difference)
+        pred_true_differences.append(difference.item())
 
         before_clustering = time.time()
         cluster_labels = clustering(pred)
