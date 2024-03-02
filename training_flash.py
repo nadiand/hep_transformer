@@ -136,12 +136,20 @@ def predict(model, test_loader):
     return predictions, score/len(test_loader)
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 20
-    EARLY_STOPPING = 50
+    NUM_EPOCHS = 500
+    EARLY_STOPPING = 10
     MODEL_NAME = "flash"
-    CHUNK_SIZE = 5000*1000
+    MAX_NUM_HITS = 5000
 
     torch.manual_seed(37)  # for reproducibility
+
+    hits_data, track_params_data, track_classes_data = load_trackml_data(data="200to500tracks_40k_old.csv", max_num_hits=MAX_NUM_HITS)
+    dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
+    train_loader, valid_loader, test_loader = get_dataloaders(dataset,
+                                                              train_frac=0.7,
+                                                              valid_frac=0.15,
+                                                              test_frac=0.15,
+                                                              batch_size=8)
 
     # Transformer model
     transformer = TransformerClassifier(num_encoder_layers=6,
@@ -167,25 +175,10 @@ if __name__ == "__main__":
 
     for epoch in range(NUM_EPOCHS):
         # Train the model
-        train_losses = []
-        with pd.read_csv("../../trackml_200to500_train.csv", chunksize=CHUNK_SIZE) as reader: #, names=colnames, header=None, dtype=dtypes) as reader:
-            for chunk in reader:
-                hits_data, track_params_data, track_classes_data = load_trackml_data(chunk, chunking=True)
-                train_dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
-                train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
-                loss = train_epoch(transformer, optimizer, train_loader, loss_fn, scaler)
-                train_losses.append(loss)
-        train_loss = np.array(train_losses).mean()
+        train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn)
 
-        val_losses = []
-        with pd.read_csv("../../trackml_200to500_valid.csv", chunksize=CHUNK_SIZE) as reader: #, names=colnames, header=None, dtype=dtypes) as reader:
-            for chunk in reader:
-                hits_data, track_params_data, track_classes_data = load_trackml_data(chunk, chunking=True)
-                val_dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
-                validation_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
-                loss = evaluate(transformer, validation_loader, loss_fn)
-                val_losses.append(loss)
-        val_loss = np.array(val_losses).mean()
+        # Evaluate using validation split
+        val_loss = evaluate(transformer, valid_loader, loss_fn)
 
         print(f"Epoch: {epoch}\nVal loss: {val_loss:.8f}, Train loss: {train_loss:.8f}", flush=True)
 
