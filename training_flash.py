@@ -52,7 +52,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
         
         # Update loss and scaler
         intermid_loss += loss
-        if i % 16 == 0:
+        if (i+1) % 16 == 0:
             mean_loss = intermid_loss.mean()
             scaler.scale(mean_loss).backward()
             scaler.step(optim)
@@ -89,7 +89,7 @@ def evaluate(model, validation_loader, loss_fn):
                 loss = loss_fn(pred, track_params)
 
             intermid_loss += loss
-            if i % 16 == 0:
+            if (i+1) % 16 == 0:
                 mean_loss = intermid_loss.mean()
                 losses += mean_loss.item()
                 intermid_loss = 0.
@@ -175,7 +175,7 @@ if __name__ == "__main__":
 
     for epoch in range(NUM_EPOCHS):
         # Train the model
-        train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn)
+        train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn, scaler)
 
         # Evaluate using validation split
         val_loss = evaluate(transformer, valid_loader, loss_fn)
