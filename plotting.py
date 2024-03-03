@@ -201,10 +201,10 @@ def plot_heatmap(parameters, param, name):
     transposed_heatmap = heatmap.T
     # A hack to make the points with no data white - setting the 0s to nans
     transposed_heatmap[transposed_heatmap == 0.0] = np.nan
-    
+
     plt.clf()
     plt.imshow(transposed_heatmap, extent=extent, origin='lower')
     plt.xlabel("Predicted")
     plt.ylabel("True")
     plt.title(f"Regressed {param} vs ground truth")
-    plt.savefig(f"../{param}_heatmap_{name}.png")
+    plt.savefig(f"{param}_heatmap_{name}.png")
