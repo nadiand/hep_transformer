@@ -6,13 +6,13 @@ import time
 from training import clustering
 from scoring import calc_score, calc_score_trackml
 from model import TransformerClassifier, PAD_TOKEN
-from dataset import HitsDataset, get_dataloaders, load_curved_3d_data, load_linear_3d_data
+from dataset import HitsDataset, get_dataloaders, load_curved_3d_data, load_linear_3d_data, load_linear_2d_data
 from trackml_data import load_trackml_data
 from plotting import *
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def predict_with_stats(model, test_loader):
+def predict_with_stats(model, test_loader, dist_thresh):
     '''
     Evaluates the network on the test data. Returns the predictions
     '''
@@ -52,7 +52,7 @@ def predict_with_stats(model, test_loader):
         pred_true_differences.append(difference.item())
 
         before_clustering = time.time()
-        cluster_labels = clustering(pred)
+        cluster_labels = clustering(pred, dist_thresh=dist_thresh)
         after_clustering = time.time()
         clustering_times.append(after_clustering-before_clustering)
 
@@ -96,10 +96,9 @@ train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               batch_size=1)
 print('data loaded')
 
-preds = predict_with_stats(transformer, test_loader)
+preds = predict_with_stats(transformer, test_loader, dist_thresh=0.1)
 preds = list(preds.values())
 
 
 for param in ['theta', 'phi', 'q']:
     plot_heatmap(preds, param, "test")
-# TODO: figure out which of the plottings are actually useful and add them here
