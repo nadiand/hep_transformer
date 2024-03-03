@@ -198,8 +198,12 @@ def plot_heatmap(parameters, param, name):
 
     heatmap, xedges, yedges = np.histogram2d(all_pred_flattened, all_true_flattened, bins=100)
     extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+    transposed_heatmap = heatmap.T
+    # A hack to make the points with no data white - setting the 0s to nans
+    transposed_heatmap[transposed_heatmap == 0.0] = np.nan
+    
     plt.clf()
-    plt.imshow(heatmap.T, extent=extent, origin='lower') #, vmax=heatmap.mean())
+    plt.imshow(transposed_heatmap, extent=extent, origin='lower')
     plt.xlabel("Predicted")
     plt.ylabel("True")
     plt.title(f"Regressed {param} vs ground truth")
