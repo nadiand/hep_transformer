@@ -10,7 +10,7 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 transformer = TransformerClassifier(num_encoder_layers=6,
                                     d_model=32,
-                                    n_head=4,
+                                    n_head=8,
                                     input_size=3,
                                     output_size=2,
                                     dim_feedforward=128,
@@ -31,10 +31,11 @@ train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               batch_size=1)
 print('data loaded')
 
-for tresh in [0.1, 0.25, 0.5, 0.75]:
-    preds, score = predict(transformer, test_loader, 0.1)
-    print(score)
+for cl_size in range(10):
+    for min_sam in range(10):
+        preds, score = predict(transformer, test_loader, 0.1)
+        print(f'cluster size {cl_size}, min samples {min_sam}, score {score}')
 
-preds = list(preds.values())
-for param in ["theta", "phi", "q"]:
-    plot_heatmap(preds, param, "test")
+#preds = list(preds.values())
+#for param in ["theta", "phi", "q"]:
+#    plot_heatmap(preds, param, "test")
