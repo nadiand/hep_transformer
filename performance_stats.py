@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.cuda as cuda
 import numpy as np
 import time
 
@@ -71,6 +72,41 @@ def predict_with_stats(model, test_loader, dist_thresh):
     print(f'TrackML score: {score/len(test_loader)}')
 
     return predictions
+
+
+def predict_with_cudatime(model, test_loader, dist_thresh):
+    '''
+    Evaluates the network on the test data. Returns the predictions
+    '''
+    # Get the network in evaluation mode
+    torch.set_grad_enabled(False)
+    model.eval()
+
+    # Time performance
+    start_event = cuda.Event(enable_timing=True)
+    end_event = cuda.Event(enable_timing=True)
+
+    start_event.record()
+    for data in test_loader:
+        _, hits, track_params, track_labels = data
+
+        # Make prediction
+        hits = hits.to(DEVICE)
+        track_params = track_params.to(DEVICE)
+        track_labels = track_labels.to(DEVICE)
+
+        padding_mask = (hits == PAD_TOKEN).all(dim=2)
+        pred = model(hits, padding_mask)
+
+        pred = torch.unsqueeze(pred[~padding_mask], 0)
+        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
+        track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
+
+        cluster_labels = clustering(pred, dist_thresh=dist_thresh)
+    end_event.record()
+    cuda.synchronize()
+    elapsed_time_ms = start_event.elapsed_time(end_event)
+    print("CUDA time:", elapsed_time_ms/len(test_loader))
 
 
 transformer = TransformerClassifier(num_encoder_layers=6,
