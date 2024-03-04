@@ -13,7 +13,7 @@ from plotting import *
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def predict_with_stats(model, test_loader, dist_thresh):
+def predict_with_stats(model, test_loader, min_cl_size, min_samples):
     '''
     Evaluates the network on the test data. Returns the predictions
     '''
@@ -53,7 +53,7 @@ def predict_with_stats(model, test_loader, dist_thresh):
         pred_true_differences.append(difference.item())
 
         before_clustering = time.time()
-        cluster_labels = clustering(pred, dist_thresh=dist_thresh)
+        cluster_labels = clustering(pred, min_cl_size, min_samples)
         after_clustering = time.time()
         clustering_times.append(after_clustering-before_clustering)
 
@@ -74,7 +74,7 @@ def predict_with_stats(model, test_loader, dist_thresh):
     return predictions
 
 
-def predict_with_cudatime(model, test_loader, dist_thresh):
+def predict_with_cudatime(model, test_loader, min_cl_size, min_samples):
     '''
     Evaluates the network on the test data. Returns the predictions
     '''
@@ -102,7 +102,7 @@ def predict_with_cudatime(model, test_loader, dist_thresh):
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
-        cluster_labels = clustering(pred, dist_thresh=dist_thresh)
+        cluster_labels = clustering(pred, min_cl_size, min_samples)
     end_event.record()
     cuda.synchronize()
     elapsed_time_ms = start_event.elapsed_time(end_event)
@@ -132,7 +132,8 @@ train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               batch_size=1)
 print('data loaded')
 
-preds = predict_with_stats(transformer, test_loader, dist_thresh=0.1)
+min_cl_size, min_samples = 5, 5
+preds = predict_with_stats(transformer, test_loader, min_cl_size, min_samples)
 preds = list(preds.values())
 
 
