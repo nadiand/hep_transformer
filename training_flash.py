@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 import pandas as pd
 from torch.utils.data import DataLoader
+from hdbscan import HDBSCAN
 
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders
@@ -12,8 +13,8 @@ from trackml_data import load_trackml_data
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def clustering(pred_params):
-    clustering_algorithm = AgglomerativeClustering(n_clusters=None, distance_threshold=0.1)
+def clustering(pred_params, min_cl_size, min_samples):
+    clustering_algorithm = HDBSCAN(min_cluster_size=min_cl_size, min_samples=min_samples)
     cluster_labels = []
     for _, event_prediction in enumerate(pred_params):
         regressed_params = np.array(event_prediction.tolist())
@@ -96,7 +97,7 @@ def evaluate(model, validation_loader, loss_fn):
             
     return losses / len(validation_loader)
 
-def predict(model, test_loader):
+def predict(model, test_loader, min_cl_size, min_samples):
     '''
     Evaluates the network on the test data. Returns the predictions
     '''
@@ -121,7 +122,7 @@ def predict(model, test_loader):
         with torch.cuda.amp.autocast():
             pred = model(hits, padding_mask)
 
-        cluster_labels = clustering(pred)
+        cluster_labels = clustering(pred, min_cl_size, min_samples)
         event_score = calc_score_trackml(cluster_labels[0], track_labels[0])
         score += event_score
 
