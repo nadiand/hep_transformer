@@ -78,7 +78,7 @@ def evaluate(model, validation_loader, loss_fn):
             
     return losses / len(validation_loader)
 
-def predict(model, test_loader, dist_thresh):
+def predict(model, test_loader, min_cl_size, min_samples):
     '''
     Evaluates the network on the test data. Returns the predictions
     '''
@@ -102,7 +102,7 @@ def predict(model, test_loader, dist_thresh):
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
-        cluster_labels = clustering(pred, dist_thresh)
+        cluster_labels = clustering(pred, min_cl_size, min_samples)
         event_score = calc_score(cluster_labels[0], track_labels[0])
         score += event_score
 
