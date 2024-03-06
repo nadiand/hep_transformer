@@ -102,7 +102,7 @@ def _analyze_tracks(truth, submission):
             'major_nhits', 'major_weight']
     return pd.DataFrame.from_records(tracks, columns=cols)
 
-def score_event(truth, submission):
+def score_event(tracks):
     """Compute the TrackML event score for a single event.
 
     Parameters
@@ -112,17 +112,15 @@ def score_event(truth, submission):
     submission : pandas.DataFrame
         Proposed hit/track association. Must have hit_id and track_id columns.
     """
-    tracks = _analyze_tracks(truth, submission)
     purity_rec = np.true_divide(tracks['major_nhits'], tracks['nhits'])
     purity_maj = np.true_divide(tracks['major_nhits'], tracks['major_particle_nhits'])
     good_track = (0.5 < purity_rec) & (0.5 < purity_maj)
     return tracks['major_weight'][good_track].sum()
 
 
-def tracking_metrics_gnn(truth, submission, predicted_count_thld=3):
+def tracking_metrics_gnn(tracks, predicted_count_thld=3):
     # Code adapted from https://github.com/gnn-tracking/gnn_tracking/blob/main/src/gnn_tracking/metrics/cluster_metrics.py
 
-    tracks = _analyze_tracks(truth, submission)
     tracks['maj_frac'] = np.true_divide(tracks['major_nhits'], tracks['nhits'])
     tracks['maj_pid_frac'] = np.true_divide(tracks['major_nhits'], tracks['major_particle_nhits'])
 
@@ -139,14 +137,10 @@ def tracking_metrics_gnn(truth, submission, predicted_count_thld=3):
     n_double_majority = sum(tracks['nhits'][tracks["double_majority"]])
     n_lhc_match = sum(tracks["lhc_match"])
 
-    result_dict = {}
-    result_dict['perfect'] = n_perfect_match / n_particles
-    result_dict['double_maj'] = n_double_majority / n_particles
-    result_dict['lhc'] = n_lhc_match / n_clusters
+    # Calculate and return perfect match efficiency, LHC-style match efficiency, 
+    # and double majority match efficiency
+    return n_perfect_match/n_particles, n_double_majority/n_particles, n_lhc_match/n_clusters
 
-    return result_dict
-
-        
 
 def calc_score(pred_lbl, true_lbl):
     """
@@ -164,7 +158,9 @@ def calc_score(pred_lbl, true_lbl):
     truth.columns = ['hit_id', 'particle_id', 'weight']
     submission = pd.DataFrame(pred_rows)
     submission.columns = ['hit_id', 'track_id']
-    return score_event(truth, submission)
+    
+    tracks = _analyze_tracks(truth, submission) 
+    return score_event(tracks), tracking_metrics_gnn(tracks)
 
 def calc_score_trackml(pred_lbl, true_lbl):
     """
@@ -182,5 +178,6 @@ def calc_score_trackml(pred_lbl, true_lbl):
     truth.columns = ['hit_id', 'particle_id', 'weight']
     submission = pd.DataFrame(pred_rows)
     submission.columns = ['hit_id', 'track_id']
-    print(tracking_metrics_gnn(truth,submission))
-    return score_event(truth, submission)
+
+    tracks = _analyze_tracks(truth, submission) 
+    return score_event(tracks), tracking_metrics_gnn(tracks)
