@@ -119,46 +119,32 @@ def score_event(truth, submission):
     return tracks['major_weight'][good_track].sum()
 
 
-def fp_fn_rate(pred_lbl, true_lbl):
-    truth_rows, pred_rows = [], []
-    for ind, part in enumerate(true_lbl):
-        truth_rows.append((ind, part.item(), 1))
+def tracking_metrics_gnn(truth, submission, predicted_count_thld=3):
+    # Code adapted from https://github.com/gnn-tracking/gnn_tracking/blob/main/src/gnn_tracking/metrics/cluster_metrics.py
 
-    for _, pred in enumerate(pred_lbl):
-        pred_rows.append(pred.item())
+    tracks = _analyze_tracks(truth, submission)
+    tracks['maj_frac'] = np.true_divide(tracks['major_nhits'], tracks['nhits'])
+    tracks['maj_pid_frac'] = np.true_divide(tracks['major_nhits'], tracks['major_particle_nhits'])
 
-    df = pd.DataFrame(truth_rows)
-    df.columns = ['hit_id', 'particle_id', 'weight']
-    df['cluster_id'] = pred_rows
+    tracks['valid'] = tracks['nhits'] >= predicted_count_thld
 
-    total_nr_hits = len(df['hit_id'])
+    tracks['perfect_match'] = (tracks['major_nhits'] == tracks['major_particle_nhits']) & (tracks['maj_frac'] > 0.99) & tracks['valid']
+    tracks['double_majority'] = (tracks['maj_pid_frac'] > 0.5) & (tracks['maj_frac'] > 0.5) & tracks['valid']
+    tracks['lhc_match'] = (tracks['maj_frac'] > 0.75) & tracks['valid']
 
-    grouped_df = df.groupby('cluster_id')
+    n_particles = tracks['nhits'].sum()
+    n_clusters = len(tracks['track_id'])
 
-    def extract_fps(rows):
-        label_data = rows["particle_id"].to_numpy(dtype=np.float32)
-        data = Counter(label_data)
-        majority_label = data.most_common(1)[0][0]
-        track_belonging = np.array([label == majority_label for label in label_data], dtype=int).astype(np.float32)
-        fps = len(track_belonging[track_belonging == False])
-        return fps
-    
-    fp_rate = (grouped_df.apply(extract_fps)).sum()/total_nr_hits
-    print(fp_rate)
+    n_perfect_match = sum(tracks['nhits'][tracks["perfect_match"]])
+    n_double_majority = sum(tracks['nhits'][tracks["double_majority"]])
+    n_lhc_match = sum(tracks["lhc_match"])
 
-    grouped_df = df.groupby('particle_id')
+    result_dict = {}
+    result_dict['perfect'] = n_perfect_match / n_particles
+    result_dict['double_maj'] = n_double_majority / n_particles
+    result_dict['lhc'] = n_lhc_match / n_clusters
 
-    def extract_fns(rows):
-        label_data = rows["cluster_id"].to_numpy(dtype=np.float32)
-        data = Counter(label_data)
-        majority_label = data.most_common(1)[0][0]
-        track_belonging = np.array([label == majority_label for label in label_data], dtype=int).astype(np.float32)
-        fns = len(track_belonging[track_belonging == False])
-        return fns
-    
-    fn_rate = (grouped_df.apply(extract_fns)).sum()/total_nr_hits
-    print(fn_rate)
-    return fp_rate, fn_rate
+    return result_dict
 
         
 
@@ -196,4 +182,5 @@ def calc_score_trackml(pred_lbl, true_lbl):
     truth.columns = ['hit_id', 'particle_id', 'weight']
     submission = pd.DataFrame(pred_rows)
     submission.columns = ['hit_id', 'track_id']
+    print(tracking_metrics_gnn(truth,submission))
     return score_event(truth, submission)
