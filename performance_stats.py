@@ -52,24 +52,24 @@ def predict_with_stats(model, test_loader, min_cl_size, min_samples):
         difference = loss_fn(pred, track_params)
         pred_true_differences.append(difference.item())
 
-        before_clustering = time.time()
-        cluster_labels = clustering(pred, min_cl_size, min_samples)
-        after_clustering = time.time()
-        clustering_times.append(after_clustering-before_clustering)
+        # before_clustering = time.time()
+        # cluster_labels = clustering(pred, min_cl_size, min_samples)
+        # after_clustering = time.time()
+        # clustering_times.append(after_clustering-before_clustering)
 
-        event_score = calc_score(cluster_labels[0], track_labels[0])
-        score += event_score
+        # event_score = calc_score(cluster_labels[0], track_labels[0])
+        # score += event_score
 
-        for _, e_id in enumerate(event_id):
-            predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
+        # for _, e_id in enumerate(event_id):
+        #     predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
 
-    print(f'Avg prediction time: {sum(prediction_times)/len(prediction_times)}')
-    print(f'Std prediction time: {np.std(prediction_times)}')
-    print(f'Avg clustering time: {sum(clustering_times)/len(clustering_times)}')
-    print(f'Std clustering time: {np.std(clustering_times)}')
+    # print(f'Avg prediction time: {sum(prediction_times)/len(prediction_times)}')
+    # print(f'Std prediction time: {np.std(prediction_times)}')
+    # print(f'Avg clustering time: {sum(clustering_times)/len(clustering_times)}')
+    # print(f'Std clustering time: {np.std(clustering_times)}')
     print(f'Avg MSE: {sum(pred_true_differences)/len(pred_true_differences)}')
     print(f'Std MSE: {np.std(pred_true_differences)}')
-    print(f'TrackML score: {score/len(test_loader)}')
+    # print(f'TrackML score: {score/len(test_loader)}')
 
     return predictions
 
@@ -86,14 +86,11 @@ def predict_with_cudatime(model, test_loader, min_cl_size, min_samples):
     start_event = cuda.Event(enable_timing=True)
     end_event = cuda.Event(enable_timing=True)
 
-    start_event.record()
+    i = 0
     for data in test_loader:
         _, hits, track_params, track_labels = data
-
-        # Make prediction
-        hits = hits.to(DEVICE)
-        track_params = track_params.to(DEVICE)
-        track_labels = track_labels.to(DEVICE)
+        if i > 0:
+            start_event.record()
 
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         pred = model(hits, padding_mask)
@@ -103,6 +100,8 @@ def predict_with_cudatime(model, test_loader, min_cl_size, min_samples):
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
         cluster_labels = clustering(pred, min_cl_size, min_samples)
+
+        i += 1
     end_event.record()
     cuda.synchronize()
     elapsed_time_ms = start_event.elapsed_time(end_event)
@@ -112,19 +111,19 @@ def predict_with_cudatime(model, test_loader, min_cl_size, min_samples):
 transformer = TransformerClassifier(num_encoder_layers=6,
                                     d_model=32,
                                     n_head=8,
-                                    input_size=3,
-                                    output_size=3,
+                                    input_size=2,
+                                    output_size=1,
                                     dim_feedforward=128,
                                     dropout=0.1)
 transformer = transformer.to(DEVICE)
 
-checkpoint = torch.load("test_best", map_location=torch.device('cpu'))
+checkpoint = torch.load("2d_model_best", map_location=torch.device('cpu'))
 transformer.load_state_dict(checkpoint['model_state_dict'])
 pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
 print("Total trainable params: {}".format(pytorch_total_params))
 
-hits_data, track_params_data, track_classes_data = load_curved_3d_data(data_path="hits_and_tracks_3d_3curved_events_all.csv", max_num_hits=600)
-dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
+hits_data, track_params_data, track_classes_data = load_linear_2d_data(data_path="hits_and_tracks_2d_events_all.csv") #, max_num_hits=100)
+dataset = HitsDataset(hits_data, track_params_data, track_classes_data).to(DEVICE)
 train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,
                                                               valid_frac=0.15,
@@ -137,5 +136,5 @@ preds = predict_with_stats(transformer, test_loader, min_cl_size, min_samples)
 preds = list(preds.values())
 
 
-for param in ['theta', 'phi', 'q']:
-    plot_heatmap(preds, param, "test")
+# for param in ['theta', 'phi', 'q']:
+#     plot_heatmap(preds, param, "test")
