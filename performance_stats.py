@@ -13,19 +13,11 @@ from plotting import *
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def predict_with_stats(model, test_loader, min_cl_size, min_samples):
-    '''
-    Evaluates the network on the test data. Returns the predictions
-    '''
+def predict_with_mse(model, test_loader):
     # Get the network in evaluation mode
     torch.set_grad_enabled(False)
     model.eval()
     predictions = {}
-    score = 0.
-
-    # Time performance
-    prediction_times = []
-    clustering_times = []
 
     # Transformer physics performance
     loss_fn = nn.MSELoss()
@@ -35,15 +27,8 @@ def predict_with_stats(model, test_loader, min_cl_size, min_samples):
         event_id, hits, track_params, track_labels = data
 
         # Make prediction
-        hits = hits.to(DEVICE)
-        track_params = track_params.to(DEVICE)
-        track_labels = track_labels.to(DEVICE)
-
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
-        before_model = time.time()
         pred = model(hits, padding_mask)
-        after_model = time.time()
-        prediction_times.append(after_model-before_model)
 
         pred = torch.unsqueeze(pred[~padding_mask], 0)
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
@@ -52,32 +37,13 @@ def predict_with_stats(model, test_loader, min_cl_size, min_samples):
         difference = loss_fn(pred, track_params)
         pred_true_differences.append(difference.item())
 
-        # before_clustering = time.time()
-        # cluster_labels = clustering(pred, min_cl_size, min_samples)
-        # after_clustering = time.time()
-        # clustering_times.append(after_clustering-before_clustering)
-
-        # event_score = calc_score(cluster_labels[0], track_labels[0])
-        # score += event_score
-
-        # for _, e_id in enumerate(event_id):
-        #     predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
-
-    # print(f'Avg prediction time: {sum(prediction_times)/len(prediction_times)}')
-    # print(f'Std prediction time: {np.std(prediction_times)}')
-    # print(f'Avg clustering time: {sum(clustering_times)/len(clustering_times)}')
-    # print(f'Std clustering time: {np.std(clustering_times)}')
     print(f'Avg MSE: {sum(pred_true_differences)/len(pred_true_differences)}')
     print(f'Std MSE: {np.std(pred_true_differences)}')
-    # print(f'TrackML score: {score/len(test_loader)}')
 
     return predictions
 
 
 def predict_with_cudatime(model, test_loader, min_cl_size, min_samples):
-    '''
-    Evaluates the network on the test data. Returns the predictions
-    '''
     # Get the network in evaluation mode
     torch.set_grad_enabled(False)
     model.eval()
@@ -123,7 +89,7 @@ pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requ
 print("Total trainable params: {}".format(pytorch_total_params))
 
 hits_data, track_params_data, track_classes_data = load_linear_2d_data(data_path="hits_and_tracks_2d_events_all.csv") #, max_num_hits=100)
-dataset = HitsDataset(hits_data, track_params_data, track_classes_data).to(DEVICE)
+dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
 train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,
                                                               valid_frac=0.15,
@@ -132,7 +98,7 @@ train_loader, valid_loader, test_loader = get_dataloaders(dataset,
 print('data loaded')
 
 min_cl_size, min_samples = 5, 5
-preds = predict_with_stats(transformer, test_loader, min_cl_size, min_samples)
+preds = predict_with_cudatime(transformer, test_loader, min_cl_size, min_samples)
 preds = list(preds.values())
 
 
