@@ -39,10 +39,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
         _, hits, track_params, _ = data
 
         # Move to CUDA
-        hits = hits.to(DEVICE)
-        track_params = track_params.to(DEVICE)
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
-
         hits = torch.unsqueeze(hits[~padding_mask], 0)
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
 
@@ -78,10 +75,7 @@ def evaluate(model, validation_loader, loss_fn):
             _, hits, track_params, _ = data
 
             # Make prediction
-            hits = hits.to(DEVICE)
-            track_params = track_params.to(DEVICE)
             padding_mask = (hits == PAD_TOKEN).all(dim=2)
-
             hits = torch.unsqueeze(hits[~padding_mask], 0)
             track_params = torch.unsqueeze(track_params[~padding_mask], 0)
             
@@ -110,9 +104,6 @@ def predict(model, test_loader, min_cl_size, min_samples):
         event_id, hits, track_params, track_labels = data
 
         # Make prediction
-        hits = hits.to(DEVICE)
-        track_params = track_params.to(DEVICE)
-        track_labels = track_labels.to(DEVICE)
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
 
         hits = torch.unsqueeze(hits[~padding_mask], 0)

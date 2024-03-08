@@ -4,13 +4,14 @@ import numpy as np
 import pandas as pd
 
 from model import PAD_TOKEN
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class HitsDataset(Dataset):
 
     def __init__(self, hits_data, track_params_data=None, class_data=None):
-        self.hits_data = hits_data
-        self.track_params_data = track_params_data
-        self.class_data = class_data
+        self.hits_data = hits_data.to(DEVICE)
+        self.track_params_data = track_params_data.to(DEVICE)
+        self.class_data = class_data.to(DEVICE)
         self.total_events = self.__len__()
 
     def __len__(self):
@@ -88,7 +89,8 @@ def load_curved_3d_data(data_path, max_num_hits):
         return np.pad(event_hit_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
     
     def extract_track_params_data(event_rows):
-        event_track_params_data = event_rows[["radial_coeff","pitch_coeff","azimuthal_coeff"]].to_numpy(dtype=np.float32)
+        event_track_params_data = event_rows[["radial_coeff","pitch_coeff"]].to_numpy(dtype=np.float32)
+        # event_track_params_data = event_rows[["radial_coeff","pitch_coeff","azimuthal_coeff"]].to_numpy(dtype=np.float32)
         return np.pad(event_track_params_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
     
     def extract_hit_classes_data(event_rows):

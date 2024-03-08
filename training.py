@@ -35,8 +35,6 @@ def train_epoch(model, optim, train_loader, loss_fn):
         optim.zero_grad()
 
         # Make prediction
-        hits = hits.to(DEVICE)
-        track_params = track_params.to(DEVICE)
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         pred = model(hits, padding_mask)
 
@@ -64,9 +62,6 @@ def evaluate(model, validation_loader, loss_fn):
             _, hits, track_params, _ = data
 
             # Make prediction
-            hits = hits.to(DEVICE)
-            track_params = track_params.to(DEVICE)
-            
             padding_mask = (hits == PAD_TOKEN).all(dim=2)
             pred = model(hits, padding_mask)
 
@@ -91,26 +86,25 @@ def predict(model, test_loader, min_cl_size, min_samples):
         event_id, hits, track_params, track_labels = data
 
         # Make prediction
-        hits = hits.to(DEVICE)
-        track_params = track_params.to(DEVICE)
-        track_labels = track_labels.to(DEVICE)
-
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
-        pred = model(hits, padding_mask)
+        # pred = model(hits, padding_mask)
 
-        pred = torch.unsqueeze(pred[~padding_mask], 0)
+        # pred = torch.unsqueeze(pred[~padding_mask], 0)
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
-        cluster_labels = clustering(pred, min_cl_size, min_samples)
+        # noise = np.random.uniform(-0.04, 0.04, size=(track_params.shape[0], track_params.shape[1], track_params.shape[2]))
+        # track_params += noise
+
+        cluster_labels = clustering(track_params, min_cl_size, min_samples)
         event_score, scores = calc_score_trackml(cluster_labels[0], track_labels[0])
         score += event_score
         perfects += scores[0]
         doubles += scores[1]
         lhcs += scores[2]
 
-        for _, e_id in enumerate(event_id):
-            predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
+        # for _, e_id in enumerate(event_id):
+        #     predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
 
     return predictions, score/len(test_loader), perfects/len(test_loader), doubles/len(test_loader), lhcs/len(test_loader)
 
