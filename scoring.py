@@ -118,7 +118,7 @@ def score_event(tracks):
     return tracks['major_weight'][good_track].sum()
 
 
-def tracking_metrics_gnn(tracks, predicted_count_thld=3):
+def tracking_metrics_gnn(tracks, n_particles, predicted_count_thld=3):
     # Code adapted from https://github.com/gnn-tracking/gnn_tracking/blob/main/src/gnn_tracking/metrics/cluster_metrics.py
 
     tracks['maj_frac'] = np.true_divide(tracks['major_nhits'], tracks['nhits'])
@@ -130,11 +130,10 @@ def tracking_metrics_gnn(tracks, predicted_count_thld=3):
     tracks['double_majority'] = (tracks['maj_pid_frac'] > 0.5) & (tracks['maj_frac'] > 0.5) & tracks['valid']
     tracks['lhc_match'] = (tracks['maj_frac'] > 0.75) & tracks['valid']
 
-    n_particles = tracks['nhits'].sum()
     n_clusters = len(tracks['track_id'])
 
-    n_perfect_match = sum(tracks['nhits'][tracks["perfect_match"]])
-    n_double_majority = sum(tracks['nhits'][tracks["double_majority"]])
+    n_perfect_match = sum(tracks["perfect_match"])
+    n_double_majority = sum(tracks["double_majority"])
     n_lhc_match = sum(tracks["lhc_match"])
 
     # Calculate and return perfect match efficiency, LHC-style match efficiency, 
@@ -158,9 +157,11 @@ def calc_score(pred_lbl, true_lbl):
     truth.columns = ['hit_id', 'particle_id', 'weight']
     submission = pd.DataFrame(pred_rows)
     submission.columns = ['hit_id', 'track_id']
+
+    nr_particles = len(truth['particle_id'].unique().tolist())
     
     tracks = _analyze_tracks(truth, submission) 
-    return score_event(tracks), tracking_metrics_gnn(tracks)
+    return score_event(tracks), tracking_metrics_gnn(tracks, nr_particles)
 
 def calc_score_trackml(pred_lbl, true_lbl):
     """
@@ -179,5 +180,7 @@ def calc_score_trackml(pred_lbl, true_lbl):
     submission = pd.DataFrame(pred_rows)
     submission.columns = ['hit_id', 'track_id']
 
+    nr_particles = len(truth['particle_id'].unique().tolist())
+
     tracks = _analyze_tracks(truth, submission) 
-    return score_event(tracks), tracking_metrics_gnn(tracks)
+    return score_event(tracks), tracking_metrics_gnn(tracks, nr_particles)
