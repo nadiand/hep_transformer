@@ -99,7 +99,7 @@ def predict(model, test_loader, min_cl_size, min_samples):
     torch.set_grad_enabled(False)
     model.eval()
     predictions = {}
-    score = 0.
+    score, perfects, doubles, lhcs = 0., 0., 0., 0.
     for data in test_loader:
         event_id, hits, track_params, track_labels = data
 
@@ -114,8 +114,11 @@ def predict(model, test_loader, min_cl_size, min_samples):
             pred = model(hits, padding_mask)
 
         cluster_labels = clustering(pred, min_cl_size, min_samples)
-        event_score = calc_score_trackml(cluster_labels[0], track_labels[0])
+        event_score, scores = calc_score_trackml(cluster_labels[0], track_labels[0])
         score += event_score
+        perfects += scores[0]
+        doubles += scores[1]
+        lhcs += scores[2]
 
         for _, e_id in enumerate(event_id):
             predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
