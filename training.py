@@ -107,11 +107,11 @@ def predict(model, test_loader, min_cl_size, min_samples):
 
         for _, e_id in enumerate(event_id):
             predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
-            to_store = []
-            for i in range(len(hits[0])):
-                to_store.append([hits[0][i][0].item(), hits[0][i][1].item(), hits[0][i][2].item(), cluster_labels[0][i].item(), track_labels[0][i][0].item(), event_id.item()])
-            df = pd.DataFrame(to_store)
-            df.to_csv('predictions.csv', mode='a', index=False, header=False)
+            # to_store = []
+            # for i in range(len(hits[0])):
+            #     to_store.append([hits[0][i][0].item(), hits[0][i][1].item(), hits[0][i][2].item(), cluster_labels[0][i].item(), track_labels[0][i][0].item(), event_id.item()])
+            # df = pd.DataFrame(to_store)
+            # df.to_csv('predictions.csv', mode='a', index=False, header=False)
 
     return predictions, score/len(test_loader), perfects/len(test_loader), doubles/len(test_loader), lhcs/len(test_loader)
 
