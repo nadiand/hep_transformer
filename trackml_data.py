@@ -41,13 +41,9 @@ def transform_trackml_data(event_id, split=False):
         final_data.to_csv('trackml_validation_data_subdivided.csv', mode='a', index=False, header=False)
 
 
-def load_trackml_data(data, normalize=False, chunking=False):
+def load_trackml_data(data, max_num_hits, normalize=False, chunking=False):
     if not chunking:
         data = pd.read_csv(data)
-    # Find the max number of hits in the batch to pad up to
-    events = data['event_id'].unique()
-    event_lens = [len(data[data['event_id'] == event]) for event in events]
-    max_num_hits = max(event_lens)
 
     # Normalize the data if applicable
     if normalize:
@@ -71,7 +67,7 @@ def load_trackml_data(data, normalize=False, chunking=False):
         p = np.sqrt(event_track_params_data[:,0]**2 + event_track_params_data[:,1]**2 + event_track_params_data[:,2]**2)
         theta = np.arccos(event_track_params_data[:,2]/p)
         phi = np.arctan2(event_track_params_data[:,1], event_track_params_data[:,0])
-        processed_event_track_params_data = np.column_stack([theta, phi, event_track_params_data[:,3]])
+        processed_event_track_params_data = np.column_stack([theta, np.sin(phi), event_track_params_data[:,3]])
         return np.pad(processed_event_track_params_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
 
     def extract_hit_classes_data(event_rows):

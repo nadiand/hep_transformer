@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from torchvision.ops.focal_loss import sigmoid_focal_loss
 
 from refiner_model import RefinerTransformer, PAD_TOKEN, save_model
 from refining_clusters_dataloader import ClustersDataset, load_calibration_data, get_dataloaders
@@ -32,11 +31,15 @@ def train_epoch(model, optim, train_loader, loss_fn):
         pred = torch.flatten(pred[~padding_mask])
         labels = labels[~padding_mask]
 
+        # weights = torch.ones(labels.shape)
+        # weights[labels.to(torch.bool)] /= 6
+
         # Calculate loss and use it to update weights
-        loss = loss_fn(pred, labels, reduction='mean')
-        loss.backward()
+        loss = loss_fn(pred, labels)
+        final_loss = loss #torch.mean(loss * weights)
+        final_loss.backward()
         optim.step()
-        losses += loss.item()
+        losses += final_loss.item()
 
     return losses / len(train_loader)
 
@@ -61,8 +64,13 @@ def evaluate(model, validation_loader, loss_fn):
 
             pred = torch.flatten(pred[~padding_mask])
             labels = labels[~padding_mask]
-            
-            loss = loss_fn(pred, labels, reduction='mean')
+
+            # weights = torch.ones(labels.shape) 
+            # weights[labels.to(torch.bool)] /= 6
+
+            # Calculate loss and use it to update weights
+            loss = loss_fn(pred, labels)
+            # final_loss = torch.mean(loss * weights)
             losses += loss.item()
             
     return losses / len(validation_loader)
@@ -90,7 +98,7 @@ def refine(model, hits, cluster_ids):
 
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 1
+    NUM_EPOCHS = 10
     EARLY_STOPPING = 100
     MODEL_NAME = "refiner"
 
@@ -100,10 +108,19 @@ if __name__ == "__main__":
     hits_data, labels_data = load_calibration_data(data_path="predictions.csv", normalize=True)
     dataset = ClustersDataset(hits_data, labels_data)
     train_loader, valid_loader = get_dataloaders(dataset,
-                                                train_frac=0.8,
-                                                valid_frac=0.2,
-                                                batch_size=64)
+                                            train_frac=0.8,
+                                            valid_frac=0.2,
+                                            batch_size=64)
     print("data loaded")
+
+
+    # test = torch.flatten(labels_data)
+
+    # ones = (test == True).sum()
+    # zeros = (test == False).sum()
+    # print(ones, zeros)
+
+    # exit(0)
 
     # Transformer model
     transformer = RefinerTransformer(num_encoder_layers=3,
@@ -117,7 +134,7 @@ if __name__ == "__main__":
     pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
     print("Total trainable params: {}".format(pytorch_total_params))
 
-    loss_fn = sigmoid_focal_loss
+    loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.1]))
     optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
 
     # Training
