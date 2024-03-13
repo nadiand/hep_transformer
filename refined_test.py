@@ -1,8 +1,8 @@
 import torch
-from model import TransformerClassifier
-from training import predict
-from dataset import HitsDataset, get_dataloaders, load_linear_3d_data, load_linear_2d_data, load_curved_3d_data
 
+from model import TransformerClassifier
+from training import predict, predict_with_refined_clusters
+from dataset import HitsDataset, get_dataloaders, load_linear_3d_data, load_linear_2d_data, load_curved_3d_data
 from plotting import *
 from trackml_data import load_trackml_data
 from refiner_model import RefinerTransformer
@@ -44,9 +44,9 @@ train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               batch_size=1)
 print('data loaded')
 
-preds, score = predict(transformer, test_loader, 5, 2)
+# preds, score, _,_,_ = predict(transformer, test_loader, 5, 2)
 
-# preds, score = predict_with_refined_clusters(transformer, test_loader, refiner)
+preds, score = predict_with_refined_clusters(transformer, test_loader, refiner, 5, 2)
 print(score)
 preds = list(preds.values())
 # for param in ["theta", "phi", "q"]:

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
+from torchvision.ops.focal_loss import sigmoid_focal_loss
 
 from refiner_model import RefinerTransformer, PAD_TOKEN, save_model
 from refining_clusters_dataset import ClustersDataset, load_calibration_data, get_dataloaders
@@ -35,7 +36,7 @@ def train_epoch(model, optim, train_loader, loss_fn):
         # weights[labels.to(torch.bool)] /= 6
 
         # Calculate loss and use it to update weights
-        loss = loss_fn(pred, labels)
+        loss = loss_fn(pred, labels, alpha=0.35, gamma=2, reduction='mean')
         final_loss = loss #torch.mean(loss * weights)
         final_loss.backward()
         optim.step()
@@ -69,7 +70,7 @@ def evaluate(model, validation_loader, loss_fn):
             # weights[labels.to(torch.bool)] /= 6
 
             # Calculate loss and use it to update weights
-            loss = loss_fn(pred, labels)
+            loss = loss_fn(pred, labels, alpha=0.5, gamma=2, reduction='mean')
             # final_loss = torch.mean(loss * weights)
             losses += loss.item()
             
@@ -134,7 +135,7 @@ if __name__ == "__main__":
     pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
     print("Total trainable params: {}".format(pytorch_total_params))
 
-    loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.1]))
+    loss_fn = sigmoid_focal_loss #nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.6]))
     optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
 
     # Training
