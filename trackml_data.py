@@ -2,7 +2,6 @@ import torch
 import numpy as np
 import pandas as pd
 import random
-import argparse
 
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
@@ -41,7 +40,7 @@ def take_inner_detector_trackml_data(event_id, file_name):
     # Write the event to a file
     final_data.to_csv(file_name, mode='a', index=False, header=False)
 
-def transform_trackml_data(event_id, additional_id, file_name, min_nr_particles, max_nr_particles):
+def transform_trackml_data(event_id, additional_id, min_nr_particles, max_nr_particles):
     try:
         hits_data = pd.read_csv(f'event0000{event_id}-hits.csv')
         particles_data = pd.read_csv(f'event0000{event_id}-particles.csv')
@@ -73,7 +72,7 @@ def transform_trackml_data(event_id, additional_id, file_name, min_nr_particles,
         final_data['event_id'] = additional_id + i # Ensures each subevent has different event ID
 
         # Write the event to a file
-        final_data.to_csv(file_name, mode='a', index=False, header=False)
+        final_data.to_csv(f'trackml_{min_nr_particles}to{max_nr_particles}tracks.csv', mode='a', index=False, header=False)
 
 
 def load_trackml_data(data, max_num_hits, normalize=False, chunking=False):
@@ -102,7 +101,7 @@ def load_trackml_data(data, max_num_hits, normalize=False, chunking=False):
         p = np.sqrt(event_track_params_data[:,0]**2 + event_track_params_data[:,1]**2 + event_track_params_data[:,2]**2)
         theta = np.arccos(event_track_params_data[:,2]/p)
         phi = np.arctan2(event_track_params_data[:,1], event_track_params_data[:,0])
-        processed_event_track_params_data = np.column_stack([theta, np.sin(phi), event_track_params_data[:,3]])
+        processed_event_track_params_data = np.column_stack([theta, np.sin(phi), np.cos(phi), event_track_params_data[:,3]])
         return np.pad(processed_event_track_params_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
 
     def extract_hit_classes_data(event_rows):
@@ -123,43 +122,13 @@ def load_trackml_data(data, max_num_hits, normalize=False, chunking=False):
     return hits_data, track_params_data, hit_classes_data
 
 
-def load_preprocessed_trackml_data(data_path, max_num_hits):
-    data = pd.read_csv(data_path)
-
-    # Shuffling the data and grouping by event ID
-    shuffled_data = data.sample(frac=1)
-    data_grouped_by_event = shuffled_data.groupby("event_id")
-
-    def extract_hits_data(event_rows):
-        # Returns the hit coordinates as a padded sequence; this is the input to the transformer
-        event_hit_data = event_rows[["x", "y", "z"]].to_numpy(dtype=np.float32)
-        return np.pad(event_hit_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
-
-    def extract_track_params_data(event_rows):
-        # Returns the track parameters as a padded sequence; this is what the transformer must regress
-        event_track_params_data = event_rows[["theta","phi","q"]].to_numpy(dtype=np.float32)
-        return np.pad(event_track_params_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
-
-    def extract_hit_classes_data(event_rows):
-        # Returns the particle information as a padded sequence; this is used for weighting in the calculation of trackML score
-        event_hit_classes_data = event_rows[["particle_id","weight"]].to_numpy(dtype=np.float32)
-        return np.pad(event_hit_classes_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
-
-    # Get the hits, track params and their weights as sequences padded up to a max length
-    grouped_hits_data = data_grouped_by_event.apply(extract_hits_data)
-    grouped_track_params_data = data_grouped_by_event.apply(extract_track_params_data)
-    grouped_hit_classes_data = data_grouped_by_event.apply(extract_hit_classes_data)
-
-    # Stack them together into one tensor
-    hits_data = torch.tensor(np.stack(grouped_hits_data.values))
-    track_params_data = torch.tensor(np.stack(grouped_track_params_data.values))
-    hit_classes_data = torch.tensor(np.stack(grouped_hit_classes_data.values))
-
-    return hits_data, track_params_data, hit_classes_data
-
-
 if __name__ == "__main__":
-    argparser = argparse.ArgumentParser()
-    argparser.add_argument('-e', '--event_id')
-    args = argparser.parse_args()
-    transform_trackml_data(args.event_id)
+    # For creating subset data
+    id = 0
+    for i in range(21000, 30000):
+        transform_trackml_data(i, id, 10, 50)
+        id += 5
+
+    # For inner detector data:
+    # for i in range(21000, 30000):
+    #     take_inner_detector_trackml_data(i, 'trackml_inner_detector.csv')
