@@ -8,12 +8,24 @@ import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 from model import PAD_TOKEN
-from domain_decomposition import split_event
+# from domain_decomposition import split_event
 
-def transform_trackml_data(event_id, split=False):
-    hits_data = pd.read_csv(f'event0000{event_id}-hits.csv')
-    particles_data = pd.read_csv(f'event0000{event_id}-particles.csv')
-    truth_data = pd.read_csv(f'event0000{event_id}-truth.csv')
+def take_inner_detector_trackml_data(event_id, file_name):
+    try:
+        hits_data = pd.read_csv(f'event0000{event_id}-hits.csv')
+        particles_data = pd.read_csv(f'event0000{event_id}-particles.csv')
+        truth_data = pd.read_csv(f'event0000{event_id}-truth.csv')
+    except:
+        print('File does not exist')
+        return
+
+    # Take only hits from inner detector
+    indices = hits_data['volume_id'] <= 9
+    hits_data = hits_data[indices]
+    truth_data = truth_data[indices]
+
+    indices = particles_data['particle_id'].isin(truth_data['particle_id'])
+    particles_data = particles_data[indices]
 
     # Merge hit, truth and particle dataframes into a single one with the relevant variables
     hits_data = hits_data[["hit_id", "x", "y", "z", "volume_id"]]
@@ -26,19 +38,42 @@ def transform_trackml_data(event_id, split=False):
     final_data = merged_data[["x", "y", "z", "volume_id", "vx", "vy", "vz", "px", "py", "pz", "q", "particle_id", "weight_x"]]
     final_data['event_id'] = event_id
 
-    # Split up the event into multiple subevents, using domain decomposition
-    if split:
-        split_data = split_event(final_data, int(event_id))
-        final_data = split_data.sort_values('event_class')
+    # Write the event to a file
+    final_data.to_csv(file_name, mode='a', index=False, header=False)
 
-    # Write the sub-events to a file
-    data_type = random.choices(["train", "test", "val"], cum_weights=[70, 85, 100])[0]
-    if data_type == "train":
-        final_data.to_csv('trackml_train_data_subdivided.csv', mode='a', index=False, header=False)
-    elif data_type == "test":
-        final_data.to_csv('trackml_test_data_subdivided.csv', mode='a', index=False, header=False)
-    else:
-        final_data.to_csv('trackml_validation_data_subdivided.csv', mode='a', index=False, header=False)
+def transform_trackml_data(event_id, additional_id, file_name, min_nr_particles, max_nr_particles):
+    try:
+        hits_data = pd.read_csv(f'event0000{event_id}-hits.csv')
+        particles_data = pd.read_csv(f'event0000{event_id}-particles.csv')
+        truth_data = pd.read_csv(f'event0000{event_id}-truth.csv')
+    except:
+        print('File does not exist')
+        return
+
+    for i in range(5):
+        # Take a subset of the particles
+        nr_particles_in_event = random.randint(min_nr_particles, max_nr_particles)
+        sampled_particle_ids = particles_data['particle_id'].unique().tolist()[:nr_particles_in_event]
+        indices = particles_data['particle_id'].isin(sampled_particle_ids)
+        particles_data = particles_data[indices]
+
+        indices = truth_data['particle_id'].isin(particles_data["particle_id"])
+        truth_data = truth_data[indices]
+        hits_data = hits_data[indices]
+
+        # Merge hit, truth and particle dataframes into a single one with the relevant variables
+        hits_data = hits_data[["hit_id", "x", "y", "z", "volume_id"]]
+        hits_data.insert(0, column="particle_id", value=truth_data["particle_id"].values)
+        hits_data.insert(0, column="weight", value=truth_data["weight"].values)
+
+        merged_data = hits_data.merge(truth_data, left_on='hit_id', right_on='hit_id')
+        merged_data = merged_data.merge(particles_data, left_on='particle_id_x', right_on='particle_id')
+
+        final_data = merged_data[["x", "y", "z", "volume_id", "vx", "vy", "vz", "px", "py", "pz", "q", "particle_id", "weight_x"]]
+        final_data['event_id'] = additional_id + i # Ensures each subevent has different event ID
+
+        # Write the event to a file
+        final_data.to_csv(file_name, mode='a', index=False, header=False)
 
 
 def load_trackml_data(data, max_num_hits, normalize=False, chunking=False):
