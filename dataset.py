@@ -61,7 +61,7 @@ def load_linear_3d_data(data_path, max_num_hits):
     def extract_track_params_data(event_rows):
         event_track_params_data = event_rows[["theta_d", "z_d", "r_d"]].to_numpy(dtype=np.float32)
         event_angles_theta = np.pi/2. - np.arctan(event_track_params_data[:, 1]/event_track_params_data[:, 2])
-        processed_event_track_params_data = np.column_stack((event_angles_theta, np.sin(event_track_params_data[:,0])))
+        processed_event_track_params_data = np.column_stack((event_angles_theta, np.sin(event_track_params_data[:,0]), np.cos(event_track_params_data[:,0])))
         return np.pad(processed_event_track_params_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
     
     def extract_hit_classes_data(event_rows):
@@ -89,8 +89,7 @@ def load_curved_3d_data(data_path, max_num_hits):
         return np.pad(event_hit_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
     
     def extract_track_params_data(event_rows):
-        event_track_params_data = event_rows[["radial_coeff","pitch_coeff"]].to_numpy(dtype=np.float32)
-        # event_track_params_data = event_rows[["radial_coeff","pitch_coeff","azimuthal_coeff"]].to_numpy(dtype=np.float32)
+        event_track_params_data = event_rows[["radial_coeff","pitch_coeff","azimuthal_coeff"]].to_numpy(dtype=np.float32)
         return np.pad(event_track_params_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
     
     def extract_hit_classes_data(event_rows):
