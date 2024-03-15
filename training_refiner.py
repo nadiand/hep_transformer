@@ -107,7 +107,16 @@ if __name__ == "__main__":
 
     # Load dataset into dataloader and split into train and validation set
     hits_data, labels_data = load_calibration_data(data_path="predictions.csv", normalize=True)
-    dataset = ClustersDataset(hits_data, labels_data)
+    indices = []
+    for i, cluster in enumerate(labels_data):
+        valid_labels = cluster[cluster != -1]
+        perfect = torch.all(valid_labels)
+        if not perfect:
+            indices.append(i)
+
+    filtered_hits, filtered_labels = hits_data[indices], labels_data[indices]
+
+    dataset = ClustersDataset(filtered_hits, filtered_labels)
     train_loader, valid_loader = get_dataloaders(dataset,
                                             train_frac=0.8,
                                             valid_frac=0.2,
