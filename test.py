@@ -12,12 +12,12 @@ transformer = TransformerClassifier(num_encoder_layers=6,
                                     d_model=32,
                                     n_head=4,
                                     input_size=3,
-                                    output_size=3,
+                                    output_size=4,
                                     dim_feedforward=128,
                                     dropout=0.1)
 transformer = transformer.to(DEVICE)
 
-checkpoint = torch.load("models/10to50_40k_sin_best", map_location=torch.device('cpu'))
+checkpoint = torch.load("models/10to50_sin_cos_best", map_location=torch.device('cpu'))
 transformer.load_state_dict(checkpoint['model_state_dict'])
 pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
 print("Total trainable params: {}".format(pytorch_total_params))
