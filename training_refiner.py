@@ -3,8 +3,10 @@ import torch.nn as nn
 import numpy as np
 from torchvision.ops.focal_loss import sigmoid_focal_loss
 
+from model import TransformerClassifier
 from refiner_model import RefinerTransformer, PAD_TOKEN, save_model
-from refining_clusters_dataset import ClustersDataset, load_calibration_data, get_dataloaders
+from refining_clusters_dataset import ClustersDataset, load_calibration_data, get_dataloaders, load_data_for_regression
+from scoring import calc_score, calc_score_trackml
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -30,14 +32,14 @@ def train_epoch(model, optim, train_loader, loss_fn):
         pred = model(hits, padding_mask)
 
         pred = torch.flatten(pred[~padding_mask])
+        # pred = pred[~padding_mask]
         labels = labels[~padding_mask]
-
-        # weights = torch.ones(labels.shape)
-        # weights[labels.to(torch.bool)] /= 6
+        print(pred, labels)
+        print()
 
         # Calculate loss and use it to update weights
-        loss = loss_fn(pred, labels, alpha=0.35, gamma=2, reduction='mean')
-        final_loss = loss #torch.mean(loss * weights)
+        loss = loss_fn(pred, labels) #, alpha=0.4, gamma=2, reduction='mean')
+        final_loss = loss
         final_loss.backward()
         optim.step()
         losses += final_loss.item()
@@ -64,14 +66,11 @@ def evaluate(model, validation_loader, loss_fn):
             pred = model(hits, padding_mask)
 
             pred = torch.flatten(pred[~padding_mask])
+            # pred = pred[~padding_mask]
             labels = labels[~padding_mask]
 
-            # weights = torch.ones(labels.shape) 
-            # weights[labels.to(torch.bool)] /= 6
-
             # Calculate loss and use it to update weights
-            loss = loss_fn(pred, labels, alpha=0.5, gamma=2, reduction='mean')
-            # final_loss = torch.mean(loss * weights)
+            loss = loss_fn(pred, labels) #, alpha=0.4, gamma=2, reduction='mean')
             losses += loss.item()
             
     return losses / len(validation_loader)
@@ -97,9 +96,25 @@ def refine(model, hits, cluster_ids):
 
     return predictions
 
+def refine_by_regressing(model, data):
+    # Get the network in evaluation mode
+    torch.set_grad_enabled(False)
+    model.eval()
+
+    grouped_data = data.groupby('cluster_id')
+    max_num_hits = grouped_data.size().reset_index().max()[0]
+    grouped_hit_data = grouped_data.apply(lambda row: np.pad(row[['x','y','z']].to_numpy(dtype=np.float32), [(0, max_num_hits-len(row)), (0, 0)], "constant", constant_values=PAD_TOKEN))
+    hits = torch.tensor(np.stack(grouped_hit_data.values))
+
+    padding_mask = (hits == PAD_TOKEN).all(dim=2)
+    pred = model(hits, padding_mask)
+    # print(pred)
+
+    return pred
+
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 10
+    NUM_EPOCHS = 5
     EARLY_STOPPING = 100
     MODEL_NAME = "refiner"
 
@@ -107,16 +122,16 @@ if __name__ == "__main__":
 
     # Load dataset into dataloader and split into train and validation set
     hits_data, labels_data = load_calibration_data(data_path="predictions.csv", normalize=True)
-    indices = []
-    for i, cluster in enumerate(labels_data):
-        valid_labels = cluster[cluster != -1]
-        perfect = torch.all(valid_labels)
-        if not perfect:
-            indices.append(i)
+    # indices = []
+    # for i, cluster in enumerate(labels_data):
+    #     valid_labels = cluster[cluster != -1]
+    #     perfect = torch.all(valid_labels)
+    #     if not perfect:
+    #         indices.append(i)
 
-    filtered_hits, filtered_labels = hits_data[indices], labels_data[indices]
+    # filtered_hits, filtered_labels = hits_data[indices], labels_data[indices]
 
-    dataset = ClustersDataset(filtered_hits, filtered_labels)
+    dataset = ClustersDataset(hits_data, labels_data)
     train_loader, valid_loader = get_dataloaders(dataset,
                                             train_frac=0.8,
                                             valid_frac=0.2,
@@ -124,7 +139,7 @@ if __name__ == "__main__":
     print("data loaded")
 
 
-    # test = torch.flatten(labels_data)
+    # test = torch.flatten(filtered_labels)
 
     # ones = (test == True).sum()
     # zeros = (test == False).sum()
@@ -143,14 +158,18 @@ if __name__ == "__main__":
     transformer = transformer.to(DEVICE)
     pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
     print("Total trainable params: {}".format(pytorch_total_params))
+    # checkpoint = torch.load("refiner_best", map_location=torch.device('cpu'))
+    # transformer.load_state_dict(checkpoint['model_state_dict'])
 
-    loss_fn = sigmoid_focal_loss #nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.6]))
+    loss_fn = nn.BCELoss() #sigmoid_focal_loss #nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.6]))
     optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
+    # optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
     # Training
     train_losses, val_losses = [], []
     min_val_loss = np.inf
     count = 0
+    # last_epoch = checkpoint['epoch']
 
     for epoch in range(NUM_EPOCHS):
         # Train the model
@@ -162,6 +181,7 @@ if __name__ == "__main__":
         # Bookkeeping
         print(f"Epoch: {epoch}\nVal loss: {val_loss:.8f}, Train loss: {train_loss:.8f}", flush=True)
         train_losses.append(train_loss)
+        val_losses.append(val_loss)
 
         if val_loss < min_val_loss:
             # If the model has a new best validation loss, save it as "the best"

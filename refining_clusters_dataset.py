@@ -31,7 +31,7 @@ def get_dataloaders(dataset, train_frac, valid_frac, batch_size):
 
 
 def load_calibration_data(data_path, normalize=False):
-    data = pd.read_csv(data_path)
+    data = pd.read_csv(data_path).head(100)
 
     if normalize:
         for col in ["x", "y", "z"]:
@@ -66,3 +66,38 @@ def load_calibration_data(data_path, normalize=False):
     belonging_data = torch.tensor(np.stack(grouped_track_belonging_data.values))
 
     return hits_data, belonging_data
+
+
+def load_data_for_regression(data_path, normalize=False):
+    data = pd.read_csv(data_path)
+
+    if normalize:
+        for col in ["x", "y", "z"]:
+            mean = data[col].mean()
+            std = data[col].std()
+            data[col] = (data[col] - mean)/std
+
+    # Shuffling the data and grouping by event ID
+    shuffled_data = data.sample(frac=1)
+    data_grouped_by_event_particle = shuffled_data.groupby(['event_id', 'cluster_id'])
+    max_num_hits = data_grouped_by_event_particle.size().reset_index().max()[0]
+
+    def extract_input(rows):
+        # Returns the hit coordinates as a padded sequence; this is the input to the transformer
+        hit_data = rows[["x", "y", "z"]].to_numpy(dtype=np.float32)
+        return np.pad(hit_data, [(0, max_num_hits-len(rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
+
+    def extract_output(rows):
+        # Returns the track parameters as a padded sequence; this is what the transformer must regress
+        track_param_data = rows[["theta", "sinphi", "cosphi", "q"]].to_numpy(dtype=np.float32)
+        return np.pad(track_param_data, [(0, max_num_hits-len(rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
+
+    # Get the hits, track params and their weights as sequences padded up to a max length
+    grouped_hits_data = data_grouped_by_event_particle.apply(extract_input)
+    grouped_track_params_data = data_grouped_by_event_particle.apply(extract_output)
+
+    # Stack them together into one tensor
+    hits_data = torch.tensor(np.stack(grouped_hits_data.values))
+    track_params_data = torch.tensor(np.stack(grouped_track_params_data.values))
+
+    return hits_data, track_params_data

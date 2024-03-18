@@ -7,7 +7,7 @@ import pandas as pd
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
 from scoring import calc_score, calc_score_trackml
-from training_refiner import refine
+from training_refiner import refine, refine_by_regressing
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -106,13 +106,14 @@ def predict(model, test_loader, min_cl_size, min_samples):
         doubles += scores[1]
         lhcs += scores[2]
 
-        for _, e_id in enumerate(event_id):
-            predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
-            # to_store = []
-            # for i in range(len(hits[0])):
-            #     to_store.append([hits[0][i][0].item(), hits[0][i][1].item(), hits[0][i][2].item(), cluster_labels[0][i].item(), track_labels[0][i][0].item(), event_id.item()])
-            # df = pd.DataFrame(to_store)
-            # df.to_csv('predictions.csv', mode='a', index=False, header=False)
+        # for _, e_id in enumerate(event_id):
+        #     predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
+        #     to_store = []
+        #     for i in range(len(hits[0])):
+        #         to_store.append([hits[0][i][0].item(), hits[0][i][1].item(), hits[0][i][2].item(), cluster_labels[0][i].item(), track_labels[0][i][0].item(), 
+        #                          track_params[0][i][0].item(), track_params[0][i][1].item(), track_params[0][i][2].item(), track_params[0][i][3].item(), event_id.item()])
+        #     df = pd.DataFrame(to_store)
+        #     df.to_csv('predictions_for_regression.csv', mode='a', index=False, header=False)
 
     return predictions, score/len(test_loader), perfects/len(test_loader), doubles/len(test_loader), lhcs/len(test_loader)
 
@@ -142,17 +143,33 @@ def predict_with_refined_clusters(model, test_loader, refiner, min_cl_size, min_
         sorted_cluster_labels = cluster_labels[indices]
         sorted_hits = torch.unsqueeze(hits[0][indices], 0)
         sorted_track_labels = track_labels[0][indices]
+        # print(cluster_labels)
+
+        # event_score, _ = calc_score_trackml(cluster_labels[0], track_labels[0])
+        # print(event_score)
 
         refiner_pred = refine(refiner, sorted_hits, sorted_cluster_labels)
         refined_cluster_labels = sorted_cluster_labels[refiner_pred]
+        # rows = []
+        # for i in range(len(hits[0])):
+        #     rows.append([hits[0][i][0].item(), hits[0][i][1].item(), hits[0][i][2].item(), cluster_labels[0][i].item(), track_labels[0][i][0].item()])
+        # df = pd.DataFrame(rows, columns=['x','y','z','cluster_id','track_id'])
+        # refiner_pred = refine_by_regressing(refiner, df)
+        # refined_cluster_labels = clustering(refiner_pred, min_cl_size, min_samples)
+        # for i, group in enumerate(refined_cluster_labels):
+        #     group *= i+1
+        # flattened_cluster_labels = [x for xs in refined_cluster_labels for x in xs]
+        # event_score, _ = calc_score_trackml(flattened_cluster_labels, track_labels[0])
+        # print(event_score)
+        # print()
 
         print(refiner_pred)
         # print(sorted_track_labels)
         event_score, _ = calc_score_trackml(refined_cluster_labels, sorted_track_labels)
         score += event_score
 
-        for _, e_id in enumerate(event_id):
-            predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
+        # for _, e_id in enumerate(event_id):
+        #     predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
 
     return predictions, score/len(test_loader)
 
