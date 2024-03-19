@@ -43,7 +43,7 @@ def predict_with_mse(model, test_loader):
     return predictions
 
 
-def predict_with_cudatime(model, test_loader, min_cl_size, min_samples):
+def predict_with_cudatime(model, test_loader, min_cl_size, min_samples, include_clustering):
     # Get the network in evaluation mode
     torch.set_grad_enabled(False)
     model.eval()
@@ -55,7 +55,7 @@ def predict_with_cudatime(model, test_loader, min_cl_size, min_samples):
     i = 0
     for data in test_loader:
         _, hits, track_params, track_labels = data
-        if i > 0:
+        if i == 1:
             start_event.record()
 
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
@@ -65,13 +65,14 @@ def predict_with_cudatime(model, test_loader, min_cl_size, min_samples):
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
-        cluster_labels = clustering(pred, min_cl_size, min_samples)
+        if include_clustering:
+            cluster_labels = clustering(pred, min_cl_size, min_samples)
 
         i += 1
     end_event.record()
     cuda.synchronize()
     elapsed_time_ms = start_event.elapsed_time(end_event)
-    print("CUDA time:", elapsed_time_ms/len(test_loader))
+    print("CUDA time:", elapsed_time_ms/(len(test_loader)-1))
 
 
 transformer = TransformerClassifier(num_encoder_layers=6,
