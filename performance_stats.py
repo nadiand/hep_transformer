@@ -49,31 +49,30 @@ def predict_with_cudatime(model, test_loader, min_cl_size, min_samples, include_
     model.eval()
 
     # Time performance
+    cuda_times = []
     start_event = cuda.Event(enable_timing=True)
     end_event = cuda.Event(enable_timing=True)
 
-    i = 0
     for data in test_loader:
         _, hits, track_params, track_labels = data
-        if i == 1:
-            start_event.record()
+        start_event.record()
 
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         pred = model(hits, padding_mask)
 
-        pred = torch.unsqueeze(pred[~padding_mask], 0)
-        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
-        track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
+        # pred = torch.unsqueeze(pred[~padding_mask], 0)
+        # track_params = torch.unsqueeze(track_params[~padding_mask], 0)
+        # track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
-        if include_clustering:
-            cluster_labels = clustering(pred, min_cl_size, min_samples)
+        # cluster_labels = clustering(pred, min_cl_size, min_samples)
+        end_event.record()
+        cuda.synchronize()
+        elapsed_time_ms = start_event.elapsed_time(end_event)
+        cuda_times.append(elapsed_time_ms)
 
-        i += 1
-    end_event.record()
-    cuda.synchronize()
-    elapsed_time_ms = start_event.elapsed_time(end_event)
-    print("CUDA time:", elapsed_time_ms/(len(test_loader)-1))
-
+    print(cuda_times)
+    print("Avg CUDA time:", sum(cuda_times[1:])/len(cuda_times[1:]))
+    
 
 transformer = TransformerClassifier(num_encoder_layers=6,
                                     d_model=32,
