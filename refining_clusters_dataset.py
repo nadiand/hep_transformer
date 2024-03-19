@@ -31,7 +31,7 @@ def get_dataloaders(dataset, train_frac, valid_frac, batch_size):
 
 
 def load_calibration_data(data_path, normalize=False):
-    data = pd.read_csv(data_path).head(100)
+    data = pd.read_csv(data_path)
 
     if normalize:
         for col in ["x", "y", "z"]:

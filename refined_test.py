@@ -22,11 +22,11 @@ transformer.load_state_dict(checkpoint['model_state_dict'])
 pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
 print("Total trainable params: {}".format(pytorch_total_params))
 
-refiner = RefinerTransformer(num_encoder_layers=3,
+refiner = TransformerClassifier(num_encoder_layers=3,
                                     d_model=32,
                                     n_head=4,
                                     input_size=3,
-                                    output_size=1,
+                                    output_size=4,
                                     dim_feedforward=64,
                                     dropout=0.1)
 refiner = refiner.to(DEVICE)
@@ -47,7 +47,7 @@ print('data loaded')
 # preds, score, _,_,_ = predict(transformer, valid_loader, 5, 2)
 
 preds, score = predict_with_refined_clusters(transformer, test_loader, refiner, 5, 2)
-# print(score)
+print(score)
 # preds = list(preds.values())
 # for param in ["theta", "phi", "q"]:
 #     plot_heatmap(preds, param, "test")

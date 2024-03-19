@@ -138,38 +138,22 @@ def predict_with_refined_clusters(model, test_loader, refiner, min_cl_size, min_
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
         hits = torch.unsqueeze(hits[~padding_mask], 0)
 
-        cluster_labels = clustering(pred, min_cl_size, min_samples)[0]
-        indices = np.argsort(np.array(cluster_labels))
-        sorted_cluster_labels = cluster_labels[indices]
-        sorted_hits = torch.unsqueeze(hits[0][indices], 0)
-        sorted_track_labels = track_labels[0][indices]
-        # print(cluster_labels)
+        cluster_labels = clustering(pred, min_cl_size, min_samples)
 
-        # event_score, _ = calc_score_trackml(cluster_labels[0], track_labels[0])
-        # print(event_score)
+        rows = []
+        for i in range(len(hits[0])):
+            rows.append([hits[0][i][0].item(), hits[0][i][1].item(), hits[0][i][2].item(), track_params[0][i][0].item(), track_params[0][i][1].item(), track_params[0][i][2].item(),
+                         track_params[0][i][3].item(), cluster_labels[0][i].item(), track_labels[0][i][0].item(), track_labels[0][i][1].item()])
+        df = pd.DataFrame(rows, columns=['x','y','z','theta','sinphi','cosphi','q','cluster_id','track_id','weight'])
+        refiner_pred = refine_by_regressing(refiner, df)
+        flattened_cluster_labels = [x for (xs,_) in refiner_pred for x in xs]
+        flattened_track_ids = [x for (_,xs) in refiner_pred for x in xs]
 
-        refiner_pred = refine(refiner, sorted_hits, sorted_cluster_labels)
-        refined_cluster_labels = sorted_cluster_labels[refiner_pred]
-        # rows = []
-        # for i in range(len(hits[0])):
-        #     rows.append([hits[0][i][0].item(), hits[0][i][1].item(), hits[0][i][2].item(), cluster_labels[0][i].item(), track_labels[0][i][0].item()])
-        # df = pd.DataFrame(rows, columns=['x','y','z','cluster_id','track_id'])
-        # refiner_pred = refine_by_regressing(refiner, df)
-        # refined_cluster_labels = clustering(refiner_pred, min_cl_size, min_samples)
-        # for i, group in enumerate(refined_cluster_labels):
-        #     group *= i+1
-        # flattened_cluster_labels = [x for xs in refined_cluster_labels for x in xs]
-        # event_score, _ = calc_score_trackml(flattened_cluster_labels, track_labels[0])
-        # print(event_score)
-        # print()
-
-        print(refiner_pred)
-        # print(sorted_track_labels)
-        event_score, _ = calc_score_trackml(refined_cluster_labels, sorted_track_labels)
+        event_score, _ = calc_score_trackml(flattened_cluster_labels, flattened_track_ids)
         score += event_score
 
-        # for _, e_id in enumerate(event_id):
-        #     predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
+        for _, e_id in enumerate(event_id):
+            predictions[e_id.item()] = (hits, pred, track_params, flattened_cluster_labels, flattened_track_ids, event_score)
 
     return predictions, score/len(test_loader)
 

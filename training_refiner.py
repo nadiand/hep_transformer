@@ -31,11 +31,11 @@ def train_epoch(model, optim, train_loader, loss_fn):
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         pred = model(hits, padding_mask)
 
-        pred = torch.flatten(pred[~padding_mask])
-        # pred = pred[~padding_mask]
+        # pred = torch.flatten(pred[~padding_mask])
+        pred = pred[~padding_mask]
         labels = labels[~padding_mask]
-        print(pred, labels)
-        print()
+        # print(pred, labels)
+        # print()
 
         # Calculate loss and use it to update weights
         loss = loss_fn(pred, labels) #, alpha=0.4, gamma=2, reduction='mean')
@@ -65,8 +65,8 @@ def evaluate(model, validation_loader, loss_fn):
             padding_mask = (hits == PAD_TOKEN).all(dim=2)
             pred = model(hits, padding_mask)
 
-            pred = torch.flatten(pred[~padding_mask])
-            # pred = pred[~padding_mask]
+            # pred = torch.flatten(pred[~padding_mask])
+            pred = pred[~padding_mask]
             labels = labels[~padding_mask]
 
             # Calculate loss and use it to update weights
@@ -101,27 +101,38 @@ def refine_by_regressing(model, data):
     torch.set_grad_enabled(False)
     model.eval()
 
-    grouped_data = data.groupby('cluster_id')
-    max_num_hits = grouped_data.size().reset_index().max()[0]
-    grouped_hit_data = grouped_data.apply(lambda row: np.pad(row[['x','y','z']].to_numpy(dtype=np.float32), [(0, max_num_hits-len(row)), (0, 0)], "constant", constant_values=PAD_TOKEN))
-    hits = torch.tensor(np.stack(grouped_hit_data.values))
+    refined_clusters = []
+    loss_fn = nn.MSELoss(reduction='none')
+    for cl_id in data['cluster_id'].unique().tolist():
+        rows = data[data['cluster_id'] == cl_id]
+        hits = torch.tensor(rows[['x','y','z']].to_numpy(dtype=np.float32))
+        track_params = torch.tensor(rows[['theta','sinphi','cosphi','q']].to_numpy(dtype=np.float32))
+        cluster_ids = torch.tensor(rows['cluster_id'].to_numpy(dtype=int))
+        track_ids = torch.tensor(rows[['track_id','weight']].to_numpy(dtype=np.float32))
 
-    padding_mask = (hits == PAD_TOKEN).all(dim=2)
-    pred = model(hits, padding_mask)
-    # print(pred)
+        padding_mask = (hits == PAD_TOKEN).all(dim=1)
+        pred = model(hits, padding_mask)
+        losses = loss_fn(pred, track_params).mean(dim=1)
 
-    return pred
+        acceptable_hits_in_cluster = cluster_ids[losses < 0.5]
+        coresponding_track_ids = track_ids[losses < 0.5]
+        if len(acceptable_hits_in_cluster) == 0:
+            refined_clusters.append((cluster_ids, track_ids))
+        else:
+            refined_clusters.append((acceptable_hits_in_cluster, coresponding_track_ids))
+
+    return refined_clusters
 
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 5
+    NUM_EPOCHS = 50
     EARLY_STOPPING = 100
     MODEL_NAME = "refiner"
 
     torch.manual_seed(37)  # for reproducibility
 
     # Load dataset into dataloader and split into train and validation set
-    hits_data, labels_data = load_calibration_data(data_path="predictions.csv", normalize=True)
+    hits_data, labels_data = load_data_for_regression(data_path="predictions_for_regression.csv", normalize=True)
     # indices = []
     # for i, cluster in enumerate(labels_data):
     #     valid_labels = cluster[cluster != -1]
@@ -148,11 +159,11 @@ if __name__ == "__main__":
     # exit(0)
 
     # Transformer model
-    transformer = RefinerTransformer(num_encoder_layers=3,
+    transformer = TransformerClassifier(num_encoder_layers=3,
                                         d_model=32,
-                                        n_head=4,
+                                        n_head=2,
                                         input_size=3,
-                                        output_size=1,
+                                        output_size=4,
                                         dim_feedforward=64,
                                         dropout=0.1)
     transformer = transformer.to(DEVICE)
@@ -161,7 +172,7 @@ if __name__ == "__main__":
     # checkpoint = torch.load("refiner_best", map_location=torch.device('cpu'))
     # transformer.load_state_dict(checkpoint['model_state_dict'])
 
-    loss_fn = nn.BCELoss() #sigmoid_focal_loss #nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.6]))
+    loss_fn = nn.MSELoss() #nn.BCELoss() #sigmoid_focal_loss #nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.6]))
     optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
     # optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
