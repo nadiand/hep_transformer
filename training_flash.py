@@ -128,7 +128,7 @@ def predict(model, test_loader, min_cl_size, min_samples):
             df = pd.DataFrame(to_store)
             df.to_csv('predictions.csv', mode='a', index=False, header=False)
 
-    return predictions, score/len(test_loader)
+    return predictions, score/len(test_loader), perfects/len(test_loader), doubles/len(test_loader), lhcs/len(test_loader)
 
 if __name__ == "__main__":
     NUM_EPOCHS = 500
