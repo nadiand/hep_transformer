@@ -187,7 +187,7 @@ def plot_results(hits, pred_cluster, true_cluster):
 
 def plot_heatmap(parameters, param, name):
     plt.figure()
-    param_names = {"radial coefficient":0, "pitch coefficient":1, "theta":0, "phi":1, "q":2}
+    param_names = {"radial coefficient":0, "pitch coefficient":1, "azimuthal coefficient":2, "theta":0, "sinphi":1, "cosphi":2, "q":3}
     all_pred, all_true = [], []
     for event_parameters in parameters:
         predicted, true = event_parameters[1][0][:, param_names[param]], event_parameters[2][0][:, param_names[param]]
