@@ -13,11 +13,12 @@ from plotting import *
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def predict_with_mse(model, test_loader):
+def predict_with_stats(model, test_loader, min_cl_size, min_samples):
     # Get the network in evaluation mode
     torch.set_grad_enabled(False)
     model.eval()
     predictions = {}
+    score, perfects, doubles, lhcs = 0., 0., 0., 0.
 
     # Transformer physics performance
     loss_fn = nn.MSELoss()
@@ -27,6 +28,10 @@ def predict_with_mse(model, test_loader):
         event_id, hits, track_params, track_labels = data
 
         # Make prediction
+        hits = hits
+        track_params = track_params
+        track_labels = track_labels
+
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         pred = model(hits, padding_mask)
 
@@ -37,8 +42,21 @@ def predict_with_mse(model, test_loader):
         difference = loss_fn(pred, track_params)
         pred_true_differences.append(difference.item())
 
+        cluster_labels = clustering(pred, min_cl_size, min_samples)
+
+        event_score, scores = calc_score_trackml(cluster_labels[0], track_labels[0])
+        score += event_score
+        perfects += scores[0]
+        doubles += scores[1]
+        lhcs += scores[2]
+
+        for _, e_id in enumerate(event_id):
+            predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
+
     print(f'Avg MSE: {sum(pred_true_differences)/len(pred_true_differences)}')
     print(f'Std MSE: {np.std(pred_true_differences)}')
+    print(f'TrackML score: {score/len(test_loader)}')
+    print(perfects/len(test_loader), doubles/len(test_loader), lhcs/len(test_loader))
 
     return predictions
 
