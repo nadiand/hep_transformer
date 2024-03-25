@@ -79,8 +79,8 @@ def load_data_for_regression(data_path, normalize=False):
 
     # Shuffling the data and grouping by event ID
     shuffled_data = data.sample(frac=1)
-    data_grouped_by_event_particle = shuffled_data.groupby(['event_id', 'cluster_id'])
-    max_num_hits = data_grouped_by_event_particle.size().reset_index().max()[0]
+    data_grouped_by_event_particle = shuffled_data.groupby(['event_id', 'particle_id'])
+    max_num_hits = 50 #data_grouped_by_event_particle.size().reset_index().max()[0]
 
     def extract_input(rows):
         # Returns the hit coordinates as a padded sequence; this is the input to the transformer
@@ -89,8 +89,12 @@ def load_data_for_regression(data_path, normalize=False):
 
     def extract_output(rows):
         # Returns the track parameters as a padded sequence; this is what the transformer must regress
-        track_param_data = rows[["theta", "sinphi", "cosphi", "q"]].to_numpy(dtype=np.float32)
-        return np.pad(track_param_data, [(0, max_num_hits-len(rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
+        event_track_params_data = rows[["px","py","pz","q"]].to_numpy(dtype=np.float32)
+        p = np.sqrt(event_track_params_data[:,0]**2 + event_track_params_data[:,1]**2 + event_track_params_data[:,2]**2)
+        theta = np.arccos(event_track_params_data[:,2]/p)
+        phi = np.arctan2(event_track_params_data[:,1], event_track_params_data[:,0])
+        processed_event_track_params_data = np.column_stack([theta, np.sin(phi), np.cos(phi), event_track_params_data[:,3]])
+        return np.pad(processed_event_track_params_data, [(0, max_num_hits-len(rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
 
     # Get the hits, track params and their weights as sequences padded up to a max length
     grouped_hits_data = data_grouped_by_event_particle.apply(extract_input)

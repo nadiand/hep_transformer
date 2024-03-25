@@ -2,9 +2,9 @@ import torch
 from model import TransformerClassifier
 from training import predict
 from dataset import HitsDataset, get_dataloaders, load_linear_3d_data, load_linear_2d_data, load_curved_3d_data
-import numpy as np
 from plotting import plot_heatmap
-from trackml_data import load_trackml_data
+from trackml_data import load_trackml_data, load_gnnlike_trackml_data
+import matplotlib.pyplot as plt
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -17,7 +17,7 @@ transformer = TransformerClassifier(num_encoder_layers=6,
                                     dropout=0.1)
 transformer = transformer.to(DEVICE)
 
-checkpoint = torch.load("models/10to50_sin_cos_best", map_location=torch.device('cpu'))
+checkpoint = torch.load("models/50to100_trackml_best", map_location=torch.device('cpu'))
 transformer.load_state_dict(checkpoint['model_state_dict'])
 pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
 print("Total trainable params: {}".format(pytorch_total_params))

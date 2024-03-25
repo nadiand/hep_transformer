@@ -101,6 +101,8 @@ def predict(model, test_loader, min_cl_size, min_samples):
 
         cluster_labels = clustering(pred, min_cl_size, min_samples)
         event_score, scores = calc_score_trackml(cluster_labels[0], track_labels[0])
+        # print(event_score)
+        # print()
         score += event_score
         perfects += scores[0]
         doubles += scores[1]
@@ -122,7 +124,7 @@ def predict_with_refined_clusters(model, test_loader, refiner, min_cl_size, min_
     torch.set_grad_enabled(False)
     model.eval()
     predictions = {}
-    score = 0.
+    score, perfects, doubles, lhcs = 0., 0., 0., 0.
     for data in test_loader:
         event_id, hits, track_params, track_labels = data
 
@@ -140,6 +142,9 @@ def predict_with_refined_clusters(model, test_loader, refiner, min_cl_size, min_
 
         cluster_labels = clustering(pred, min_cl_size, min_samples)
 
+        # event_score, _ = calc_score_trackml(cluster_labels[0], track_labels[0])  
+        # print(event_score)
+
         rows = []
         for i in range(len(hits[0])):
             rows.append([hits[0][i][0].item(), hits[0][i][1].item(), hits[0][i][2].item(), track_params[0][i][0].item(), track_params[0][i][1].item(), track_params[0][i][2].item(),
@@ -149,13 +154,18 @@ def predict_with_refined_clusters(model, test_loader, refiner, min_cl_size, min_
         flattened_cluster_labels = [x for (xs,_) in refiner_pred for x in xs]
         flattened_track_ids = [x for (_,xs) in refiner_pred for x in xs]
 
-        event_score, _ = calc_score_trackml(flattened_cluster_labels, flattened_track_ids)
+        event_score, scores = calc_score_trackml(flattened_cluster_labels, flattened_track_ids)
+        # print(event_score)
+        # print()
         score += event_score
+        perfects += scores[0]
+        doubles += scores[1]
+        lhcs += scores[2]
 
         for _, e_id in enumerate(event_id):
             predictions[e_id.item()] = (hits, pred, track_params, flattened_cluster_labels, flattened_track_ids, event_score)
 
-    return predictions, score/len(test_loader)
+    return predictions, score/len(test_loader), perfects/len(test_loader), doubles/len(test_loader), lhcs/len(test_loader)
 
 
 if __name__ == "__main__":

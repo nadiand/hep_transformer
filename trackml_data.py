@@ -88,6 +88,63 @@ def load_trackml_data(data, max_num_hits, normalize=False, chunking=False):
     return hits_data, track_params_data, hit_classes_data
 
 
+def load_gnnlike_trackml_data(data, max_num_hits, normalize=False, chunking=False):
+    if not chunking:
+        data = pd.read_csv(data)
+
+    # Normalize the data if applicable
+    if normalize:
+        for col in ["x", "y", "z"]:
+            mean = data[col].mean()
+            std = data[col].std()
+            data[col] = (data[col] - mean)/std
+
+    data['p'] = np.sqrt(data['x']**2 + data['y']**2 + data['z']**2)
+    data['theta'] = np.arccos(data['z']/data['p'])
+    data['phi'] = np.arctan2(data['y'], data['x'])
+
+    print(len(data))
+    # data = data[data['volume_id'] <= 9]
+    data['p_t'] = np.sqrt(data['px']**2 + data['py']**2)
+    data = data[data['p_t'] > 0.9]
+    theta = np.arctan2(data['p_t'], data['pz'])
+    data['pseudorapidity'] = - np.log(np.tan(theta/2))
+    data = data[data['pseudorapidity'] < 4]
+    print(len(data))
+
+    # Shuffling the data and grouping by event ID
+    shuffled_data = data.sample(frac=1)
+    data_grouped_by_event = shuffled_data.groupby("event_id")
+
+    def extract_hits_data(event_rows):
+        # Returns the hit coordinates as a padded sequence; this is the input to the transformer
+        event_hit_data = event_rows[["x", "y", "z"]].to_numpy(dtype=np.float32)
+        return np.pad(event_hit_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
+
+    def extract_track_params_data(event_rows):
+        # Returns the track parameters as a padded sequence; this is what the transformer must regress
+        event_track_params_data = event_rows[["theta", "phi","q"]].to_numpy(dtype=np.float32)
+        processed_event_track_params_data = np.column_stack([event_track_params_data[:,0], np.sin(event_track_params_data[:,1]), np.cos(event_track_params_data[:,1]), event_track_params_data[:,2]])
+        return np.pad(processed_event_track_params_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
+
+    def extract_hit_classes_data(event_rows):
+        # Returns the particle information as a padded sequence; this is used for weighting in the calculation of trackML score
+        event_hit_classes_data = event_rows[["particle_id","weight"]].to_numpy(dtype=np.float32)
+        return np.pad(event_hit_classes_data, [(0, max_num_hits-len(event_rows)), (0, 0)], "constant", constant_values=PAD_TOKEN)
+
+    # Get the hits, track params and their weights as sequences padded up to a max length
+    grouped_hits_data = data_grouped_by_event.apply(extract_hits_data)
+    grouped_track_params_data = data_grouped_by_event.apply(extract_track_params_data)
+    grouped_hit_classes_data = data_grouped_by_event.apply(extract_hit_classes_data)
+
+    # Stack them together into one tensor
+    hits_data = torch.tensor(np.stack(grouped_hits_data.values))
+    track_params_data = torch.tensor(np.stack(grouped_track_params_data.values))
+    hit_classes_data = torch.tensor(np.stack(grouped_hit_classes_data.values))
+
+    return hits_data, track_params_data, hit_classes_data
+
+
 def load_preprocessed_trackml_data(data_path, max_num_hits):
     data = pd.read_csv(data_path)
 

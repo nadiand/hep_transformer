@@ -4,8 +4,9 @@ import numpy as np
 from torchvision.ops.focal_loss import sigmoid_focal_loss
 
 from model import TransformerClassifier
+from dataset import HitsDataset, get_dataloaders
 from refiner_model import RefinerTransformer, PAD_TOKEN, save_model
-from refining_clusters_dataset import ClustersDataset, load_calibration_data, get_dataloaders, load_data_for_regression
+from refining_clusters_dataset import load_calibration_data, load_data_for_regression, ClustersDataset
 from scoring import calc_score, calc_score_trackml
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -105,18 +106,34 @@ def refine_by_regressing(model, data):
     loss_fn = nn.MSELoss(reduction='none')
     for cl_id in data['cluster_id'].unique().tolist():
         rows = data[data['cluster_id'] == cl_id]
+        # print(rows)
         hits = torch.tensor(rows[['x','y','z']].to_numpy(dtype=np.float32))
         track_params = torch.tensor(rows[['theta','sinphi','cosphi','q']].to_numpy(dtype=np.float32))
         cluster_ids = torch.tensor(rows['cluster_id'].to_numpy(dtype=int))
         track_ids = torch.tensor(rows[['track_id','weight']].to_numpy(dtype=np.float32))
 
+        # _, indices = torch.mode(cluster_ids, 0)
+        # maj_params = track_params[indices]
+        # maj_params = maj_params.unsqueeze(0).repeat(len(rows), 1)
+
         padding_mask = (hits == PAD_TOKEN).all(dim=1)
         pred = model(hits, padding_mask)
-        losses = loss_fn(pred, track_params).mean(dim=1)
+        # print(pred)
+        representative_track_params, _ = torch.median(pred, dim=0)
+        representative_track_params = representative_track_params.unsqueeze(0).repeat(len(rows), 1)
 
-        acceptable_hits_in_cluster = cluster_ids[losses < 0.5]
-        coresponding_track_ids = track_ids[losses < 0.5]
-        if len(acceptable_hits_in_cluster) == 0:
+        losses = loss_fn(pred, representative_track_params).mean(dim=1)
+        # mean_loss = losses.mean()
+        # std_loss = losses.std()
+        # print(losses)
+        cutoff = 0.005
+        # print(losses < (min(losses)+cutoff))
+        # print()
+        # TODO try this idiocity; with small examples first 
+        acceptable_hits_in_cluster = cluster_ids[losses < (min(losses)+cutoff)]
+        coresponding_track_ids = track_ids[losses < (min(losses)+cutoff)]
+        if len(acceptable_hits_in_cluster) < 4:
+            # print('here')
             refined_clusters.append((cluster_ids, track_ids))
         else:
             refined_clusters.append((acceptable_hits_in_cluster, coresponding_track_ids))
@@ -125,14 +142,14 @@ def refine_by_regressing(model, data):
 
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 50
-    EARLY_STOPPING = 100
+    NUM_EPOCHS = 100
+    EARLY_STOPPING = 50
     MODEL_NAME = "refiner"
 
     torch.manual_seed(37)  # for reproducibility
 
     # Load dataset into dataloader and split into train and validation set
-    hits_data, labels_data = load_data_for_regression(data_path="predictions_for_regression.csv", normalize=True)
+    hits_data, labels_data = load_data_for_regression(data_path="trackml_10to50tracks_40kevents.csv", normalize=True)
     # indices = []
     # for i, cluster in enumerate(labels_data):
     #     valid_labels = cluster[cluster != -1]
@@ -143,10 +160,11 @@ if __name__ == "__main__":
     # filtered_hits, filtered_labels = hits_data[indices], labels_data[indices]
 
     dataset = ClustersDataset(hits_data, labels_data)
-    train_loader, valid_loader = get_dataloaders(dataset,
-                                            train_frac=0.8,
-                                            valid_frac=0.2,
-                                            batch_size=64)
+    train_loader, valid_loader, test_loader = get_dataloaders(dataset,
+                                            train_frac=0.7,
+                                            valid_frac=0.15,
+                                            test_frac=0.15,
+                                            batch_size=32)
     print("data loaded")
 
 

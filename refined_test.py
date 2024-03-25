@@ -24,7 +24,7 @@ print("Total trainable params: {}".format(pytorch_total_params))
 
 refiner = TransformerClassifier(num_encoder_layers=3,
                                     d_model=32,
-                                    n_head=4,
+                                    n_head=2,
                                     input_size=3,
                                     output_size=4,
                                     dim_feedforward=64,
@@ -44,10 +44,10 @@ train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               batch_size=1)
 print('data loaded')
 
-# preds, score, _,_,_ = predict(transformer, valid_loader, 5, 2)
+# preds, score, perfect, double, lhc = predict(transformer, valid_loader, 5, 2)
 
-preds, score = predict_with_refined_clusters(transformer, test_loader, refiner, 5, 2)
-print(score)
+preds, score, perfect, double, lhc = predict_with_refined_clusters(transformer, test_loader, refiner, 5, 2)
+print(score, perfect, double, lhc)
 # preds = list(preds.values())
 # for param in ["theta", "phi", "q"]:
 #     plot_heatmap(preds, param, "test")
