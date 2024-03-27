@@ -63,13 +63,14 @@ def predict_with_stats(model, test_loader, min_cl_size, min_samples):
     return predictions
 
 
-def predict_with_cudatime(model, test_loader, min_cl_size, min_samples, include_clustering):
+def record_cuda_cpu_time(model, test_loader, min_cl_size, min_samples):
     # Get the network in evaluation mode
     torch.set_grad_enabled(False)
     model.eval()
 
     # Time performance
     cuda_times = []
+    cpu_times = []
     start_event = cuda.Event(enable_timing=True)
     end_event = cuda.Event(enable_timing=True)
 
@@ -79,50 +80,23 @@ def predict_with_cudatime(model, test_loader, min_cl_size, min_samples, include_
 
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         pred = model(hits, padding_mask)
-
-        # pred = torch.unsqueeze(pred[~padding_mask], 0)
-        # track_params = torch.unsqueeze(track_params[~padding_mask], 0)
-        # track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
-
-        # cluster_labels = clustering(pred, min_cl_size, min_samples)
+        pred = torch.unsqueeze(pred[~padding_mask], 0)
+        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
+        track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
+        
         end_event.record()
         cuda.synchronize()
         elapsed_time_ms = start_event.elapsed_time(end_event)
         cuda_times.append(elapsed_time_ms)
 
-    print(cuda_times)
-    print("Avg CUDA time:", sum(cuda_times[1:])/len(cuda_times[1:]))
-    
-
-def predict_with_cputime(model, test_loader, min_cl_size, min_samples):
-    # Get the network in evaluation mode
-    torch.set_grad_enabled(False)
-    model.eval()
-
-    time_clocks = []
-    cpu_times = []
-
-    for data in test_loader:
-        _, hits, track_params, track_labels = data
-
-        padding_mask = (hits == PAD_TOKEN).all(dim=2)
-        pred = model(hits, padding_mask)
-
-        pred = torch.unsqueeze(pred[~padding_mask], 0)
-        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
-        track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
-
-        start_timer = perf_counter_ns()
         start_cpu_time = process_time_ns()
         cluster_labels = clustering(pred, min_cl_size, min_samples)
-        end_timer = perf_counter_ns()
         end_cpu_time = process_time_ns()
-
-        time_clocks.append(end_timer - start_timer)
         cpu_times.append(end_cpu_time - start_cpu_time)
 
-    print(cpu_times, time_clocks)
+    print("Avg CUDA time:", sum(cuda_times[1:])/len(cuda_times[1:]))
     print("Avg CPU time:", sum(cpu_times[1:])/len(cpu_times[1:]))
+    
 
 transformer = TransformerClassifier(num_encoder_layers=6,
                                     d_model=32,
