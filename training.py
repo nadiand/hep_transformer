@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import numpy as np
 from hdbscan import HDBSCAN
-import pandas as pd
 
 from model import TransformerClassifier, PAD_TOKEN, save_model
 from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
@@ -96,7 +95,7 @@ def predict(model, test_loader, min_cl_size, min_samples):
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
-        # noise = np.random.uniform(-0.04, 0.04, size=(track_params.shape[0], track_params.shape[1], track_params.shape[2]))
+        # noise = np.random.normal(0, 0.15, size=(track_params.shape[0], track_params.shape[1], track_params.shape[2]))
         # track_params += noise
 
         cluster_labels = clustering(pred, min_cl_size, min_samples)
@@ -108,11 +107,6 @@ def predict(model, test_loader, min_cl_size, min_samples):
 
         for _, e_id in enumerate(event_id):
             predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
-            # to_store = []
-            # for i in range(len(hits[0])):
-            #     to_store.append([hits[0][i][0].item(), hits[0][i][1].item(), hits[0][i][2].item(), cluster_labels[0][i].item(), track_labels[0][i][0].item(), event_id.item()])
-            # df = pd.DataFrame(to_store)
-            # df.to_csv('predictions.csv', mode='a', index=False, header=False)
 
     return predictions, score/len(test_loader), perfects/len(test_loader), doubles/len(test_loader), lhcs/len(test_loader)
 
