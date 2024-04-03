@@ -1,7 +1,5 @@
 __pycache__/
 wandb/
-model performance/
-hits_and_tracks_*
 *_best
 *_last
 *.csv
