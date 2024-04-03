@@ -122,9 +122,8 @@ train_loader, valid_loader, test_loader = get_dataloaders(dataset,
 print('data loaded')
 
 min_cl_size, min_samples = 5, 2
-preds = predict_with_cputime(transformer, test_loader, min_cl_size, min_samples)
+preds = record_cuda_cpu_time(transformer, test_loader, min_cl_size, min_samples)
+
 # preds = list(preds.values())
-
-
 # for param in ['theta', 'phi', 'q']:
 #     plot_heatmap(preds, param, "test")
