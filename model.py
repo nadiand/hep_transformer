@@ -39,6 +39,7 @@ class TransformerRegressor(nn.Module):
         out = self.output_layer(memory)
         return out
 
+
 def save_model(model, optim, type, val_losses, train_losses, epoch, count, file_name):
     print(f"Saving {type} model")
     torch.save({

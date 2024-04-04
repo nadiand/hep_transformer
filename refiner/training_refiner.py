@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from ..model import TransformerClassifier, save_model, PAD_TOKEN
-from ..dataset import get_dataloaders
+from ..model import TransformerRegressor, save_model
+from ..dataset import get_dataloaders, PAD_TOKEN
 from refining_clusters_dataset import load_data_for_refiner, ClustersDataset
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     print("data loaded")
 
     # Transformer model
-    transformer = TransformerClassifier(num_encoder_layers=3,
+    transformer = TransformerRegressor(num_encoder_layers=3,
                                         d_model=32,
                                         n_head=2,
                                         input_size=3,

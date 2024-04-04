@@ -1,5 +1,5 @@
 import torch
-from model import TransformerClassifier
+from model import TransformerRegressor
 from dataset import HitsDataset, get_dataloaders, load_linear_3d_data, load_linear_2d_data, load_curved_3d_data
 from training_flash import *
 import wandb
@@ -34,7 +34,7 @@ train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               batch_size=1)
 
 def train_model(num_enc_layers, emb_dim, nr_heads, dim_ff):
-    transformer = TransformerClassifier(num_encoder_layers=num_enc_layers,
+    transformer = TransformerRegressor(num_encoder_layers=num_enc_layers,
                                                             d_model=emb_dim,
                                                             n_head=nr_heads,
                                                             input_size=3,

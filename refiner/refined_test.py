@@ -1,8 +1,8 @@
 import torch
 import pandas as pd
 
-from ..model import TransformerClassifier, PAD_TOKEN
-from ..dataset import HitsDataset, get_dataloaders
+from ..model import TransformerRegressor
+from ..dataset import HitsDataset, get_dataloaders, PAD_TOKEN
 from ..plotting import *
 from ..scoring import calc_score_trackml
 from ..training import clustering
@@ -58,7 +58,7 @@ def predict_with_refined_clusters(regressor, test_loader, refiner, min_cl_size, 
     return predictions, score/len(test_loader), perfects/len(test_loader), doubles/len(test_loader), lhcs/len(test_loader)
 
 
-transformer = TransformerClassifier(num_encoder_layers=6,
+transformer = TransformerRegressor(num_encoder_layers=6,
                                     d_model=32,
                                     n_head=4,
                                     input_size=3,
@@ -71,7 +71,7 @@ transformer.load_state_dict(checkpoint['model_state_dict'])
 pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
 print("Total trainable params: {}".format(pytorch_total_params))
 
-refiner = TransformerClassifier(num_encoder_layers=3,
+refiner = TransformerRegressor(num_encoder_layers=3,
                                     d_model=32,
                                     n_head=2,
                                     input_size=3,

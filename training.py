@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 from hdbscan import HDBSCAN
 
-from model import TransformerClassifier, save_model
+from model import TransformerRegressor, save_model
 from dataset import HitsDataset, PAD_TOKEN, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
 from scoring import calc_score, calc_score_trackml
 from trackml_data import load_trackml_data
@@ -135,7 +135,7 @@ if __name__ == "__main__":
     print("data loaded")
 
     # Transformer model
-    transformer = TransformerClassifier(num_encoder_layers=6,
+    transformer = TransformerRegressor(num_encoder_layers=6,
                                         d_model=32,
                                         n_head=4,
                                         input_size=3,

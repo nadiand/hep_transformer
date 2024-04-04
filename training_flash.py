@@ -6,7 +6,7 @@ import pandas as pd
 from torch.utils.data import DataLoader
 from hdbscan import HDBSCAN
 
-from model import TransformerClassifier, save_model
+from model import TransformerRegressor, save_model
 from dataset import HitsDataset, get_dataloaders, PAD_TOKEN
 from scoring import calc_score_trackml
 from trackml_data import load_trackml_data
@@ -147,7 +147,7 @@ if __name__ == "__main__":
                                                               batch_size=8)
 
     # Transformer model
-    transformer = TransformerClassifier(num_encoder_layers=6,
+    transformer = TransformerRegressor(num_encoder_layers=6,
                                         d_model=64,
                                         n_head=8,
                                         input_size=3,
