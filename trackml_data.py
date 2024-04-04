@@ -7,9 +7,14 @@ import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 from model import PAD_TOKEN
-# from domain_decomposition import split_event
+from domain_decomposition import split_event
+
 
 def take_inner_detector_trackml_data(event_id, file_name):
+    """
+    Parse the three TrackML files per event and write the data to file file_name,
+    such that only hits from the inner detector are kept.
+    """
     try:
         hits_data = pd.read_csv(f'event0000{event_id}-hits.csv')
         particles_data = pd.read_csv(f'event0000{event_id}-particles.csv')
@@ -41,6 +46,12 @@ def take_inner_detector_trackml_data(event_id, file_name):
     final_data.to_csv(file_name, mode='a', index=False, header=False)
 
 def transform_trackml_data(event_id, additional_id, min_nr_particles, max_nr_particles):
+    """
+    Parse the three TrackML files per event and write the data to file,
+    such that only p particles with their hits are sampled, where 
+    p in [min_nr_particles, max_nr_particles]. Sample 5 times, effectively
+    creating 5 smaller events out of the original one.
+    """
     try:
         hits_data = pd.read_csv(f'event0000{event_id}-hits.csv')
         particles_data = pd.read_csv(f'event0000{event_id}-particles.csv')
@@ -76,6 +87,13 @@ def transform_trackml_data(event_id, additional_id, min_nr_particles, max_nr_par
 
 
 def load_trackml_data(data, max_num_hits, normalize=False, chunking=False):
+    """
+    Function for reading .csv file with TrackML data and creating tensors
+    containing the hits and ground truth information from it.
+    max_num_hits denotes the size of the largest event, to pad the other events
+    up to. normalize decides whether the data will be normalized first. 
+    chunking allows for reading .csv files in chunks.
+    """
     if not chunking:
         data = pd.read_csv(data)
 
