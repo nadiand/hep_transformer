@@ -72,6 +72,9 @@ def evaluate(model, validation_loader, loss_fn):
 
 
 def refine(model, data):
+    """
+    Use model to refine the predicted clusters contained in the dataframe data.
+    """
     # Get the network in evaluation mode
     torch.set_grad_enabled(False)
     model.eval()
@@ -124,7 +127,7 @@ if __name__ == "__main__":
                                             batch_size=32)
     print("data loaded")
 
-    # Transformer model
+    # Transformer refiner model
     transformer = TransformerRegressor(num_encoder_layers=3,
                                         d_model=32,
                                         n_head=2,

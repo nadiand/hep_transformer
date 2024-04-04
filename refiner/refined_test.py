@@ -3,13 +3,14 @@ import pandas as pd
 
 from ..model import TransformerRegressor
 from ..dataset import HitsDataset, get_dataloaders, PAD_TOKEN
-from ..plotting import *
+from ..plotting import plot_heatmap
 from ..scoring import calc_score_trackml
 from ..training import clustering
 from training_refiner import refine
 from refining_clusters_dataset import load_data_for_refiner
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 
 def predict_with_refined_clusters(regressor, test_loader, refiner, min_cl_size, min_samples):
     # Get the regressor in evaluation mode
