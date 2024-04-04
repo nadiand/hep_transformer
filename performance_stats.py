@@ -19,7 +19,8 @@ def predict_with_stats(model, test_loader, min_cl_size, min_samples):
     """
     Evaluates model on test_loader, using the specified HDBSCAN parameters,
     and returns the average MSE, TrackML score, perfect match efficiency,
-    double majority match efficiency, and LHC-style match efficiency.
+    double majority match efficiency, LHC-style match efficiency, and 
+    standard deviation of predictions.
     """
     # Get the network in evaluation mode
     torch.set_grad_enabled(False)
@@ -30,6 +31,7 @@ def predict_with_stats(model, test_loader, min_cl_size, min_samples):
     # Transformer physics performance
     loss_fn = nn.MSELoss()
     pred_true_differences = []
+    theta_errors, sinphi_errors, cosphi_errors, q_errors = [],[],[],[]
 
     for data in test_loader:
         event_id, hits, track_params, track_labels = data
@@ -45,6 +47,12 @@ def predict_with_stats(model, test_loader, min_cl_size, min_samples):
         pred_true_differences.append(difference.item())
 
         cluster_labels = clustering(pred, min_cl_size, min_samples)
+        diff = (pred - track_params)[0]
+        for line in diff:
+            theta_errors.append(line[0].item())
+            sinphi_errors.append(line[1].item())
+            cosphi_errors.append(line[2].item())
+            q_errors.append(line[3].item())
 
         event_score, scores = calc_score_trackml(cluster_labels[0], track_labels[0])
         score += event_score
@@ -59,6 +67,12 @@ def predict_with_stats(model, test_loader, min_cl_size, min_samples):
     print(f'Std MSE: {np.std(pred_true_differences)}')
     print(f'TrackML score: {score/len(test_loader)}')
     print(perfects/len(test_loader), doubles/len(test_loader), lhcs/len(test_loader))
+
+    print("Standard deviations of theta, sinphi, cosphi, q:")
+    print(np.std(theta_errors))
+    print(np.std(sinphi_errors))
+    print(np.std(cosphi_errors))
+    print(np.std(q_errors))
 
     return predictions
 
