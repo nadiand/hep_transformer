@@ -1,9 +1,6 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from sklearn.cluster import AgglomerativeClustering
-import pandas as pd
-from torch.utils.data import DataLoader
 from hdbscan import HDBSCAN
 
 from model import TransformerRegressor, save_model
@@ -13,7 +10,12 @@ from trackml_data import load_trackml_data
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
 def clustering(pred_params, min_cl_size, min_samples):
+    """
+    Function to perform HDBSCAN on the predicted track parameters, with specified
+    HDBSCAN hyperparameters. Returns the associated cluster IDs.
+    """
     clustering_algorithm = HDBSCAN(min_cluster_size=min_cl_size, min_samples=min_samples)
     cluster_labels = []
     for _, event_prediction in enumerate(pred_params):
@@ -24,10 +26,13 @@ def clustering(pred_params, min_cl_size, min_samples):
     cluster_labels = [torch.from_numpy(cl_lbl).int() for cl_lbl in cluster_labels]
     return cluster_labels
 
+
 def train_epoch(model, optim, train_loader, loss_fn, scaler):
     '''
     Conducts a single epoch of training: prediction, loss calculation, and loss
     backpropagation. Returns the average loss over the whole train data.
+    scaler is necessary to ensure the model's convergence (necessary due to usage
+    of mixed precision, needed for Flash attention).
     '''
     # Get the network in train mode
     torch.set_grad_enabled(True)
@@ -35,10 +40,10 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
     losses = 0.
     intermid_loss = 0.
     optim.zero_grad()
+
     for i, data in enumerate(train_loader):
         _, hits, track_params, _ = data
 
-        # Move to CUDA
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         hits = torch.unsqueeze(hits[~padding_mask], 0)
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
@@ -48,7 +53,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
             pred = model(hits, padding_mask)
             loss = loss_fn(pred, track_params)
         
-        # Update loss and scaler
+        # Update loss and scaler after a "batch"
         intermid_loss += loss
         if (i+1) % 16 == 0:
             mean_loss = intermid_loss.mean()
@@ -60,6 +65,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
             optim.zero_grad()
 
     return losses / len(train_loader)
+
 
 def evaluate(model, validation_loader, loss_fn):
     '''
@@ -83,6 +89,7 @@ def evaluate(model, validation_loader, loss_fn):
                 pred = model(hits, padding_mask)
                 loss = loss_fn(pred, track_params)
 
+            # Update loss after a "batch"
             intermid_loss += loss
             if (i+1) % 16 == 0:
                 mean_loss = intermid_loss.mean()
@@ -91,15 +98,17 @@ def evaluate(model, validation_loader, loss_fn):
             
     return losses / len(validation_loader)
 
+
 def predict(model, test_loader, min_cl_size, min_samples):
     '''
-    Evaluates the network on the test data. Returns the predictions
+    Evaluates the network on the test data. Returns the predictions and scores.
     '''
     # Get the network in evaluation mode
     torch.set_grad_enabled(False)
     model.eval()
     predictions = {}
     score, perfects, doubles, lhcs = 0., 0., 0., 0.
+
     for data in test_loader:
         event_id, hits, track_params, track_labels = data
 
@@ -113,6 +122,7 @@ def predict(model, test_loader, min_cl_size, min_samples):
         with torch.cuda.amp.autocast():
             pred = model(hits, padding_mask)
 
+        # Cluster and evaluate
         cluster_labels = clustering(pred, min_cl_size, min_samples)
         event_score, scores = calc_score_trackml(cluster_labels[0], track_labels[0])
         score += event_score
@@ -122,13 +132,9 @@ def predict(model, test_loader, min_cl_size, min_samples):
 
         for _, e_id in enumerate(event_id):
             predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
-            to_store = []
-            for i in range(len(hits[0])):
-                to_store.append([hits[0][i][0].item(), hits[0][i][1].item(), hits[0][i][2].item(), cluster_labels[0][i].item(), track_labels[0][i][0].item(), event_id.item()])
-            df = pd.DataFrame(to_store)
-            df.to_csv('predictions.csv', mode='a', index=False, header=False)
 
     return predictions, score/len(test_loader), perfects/len(test_loader), doubles/len(test_loader), lhcs/len(test_loader)
+
 
 if __name__ == "__main__":
     NUM_EPOCHS = 500
@@ -138,13 +144,14 @@ if __name__ == "__main__":
 
     torch.manual_seed(37)  # for reproducibility
 
-    hits_data, track_params_data, track_classes_data = load_trackml_data(data="200to500tracks_40k_old.csv", max_num_hits=MAX_NUM_HITS)
+    # Loading data
+    hits_data, track_params_data, track_classes_data = load_trackml_data(data="200to500tracks_40k_old.csv", max_num_hits=MAX_NUM_HITS, normalize=True)
     dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
     train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,
                                                               valid_frac=0.15,
                                                               test_frac=0.15,
-                                                              batch_size=8)
+                                                              batch_size=1)
 
     # Transformer model
     transformer = TransformerRegressor(num_encoder_layers=6,

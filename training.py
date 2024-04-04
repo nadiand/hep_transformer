@@ -10,7 +10,12 @@ from trackml_data import load_trackml_data
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
 def clustering(pred_params, min_cl_size, min_samples):
+    """
+    Function to perform HDBSCAN on the predicted track parameters, with specified
+    HDBSCAN hyperparameters. Returns the associated cluster IDs.
+    """
     clustering_algorithm = HDBSCAN(min_cluster_size=min_cl_size, min_samples=min_samples)
     cluster_labels = []
     for _, event_prediction in enumerate(pred_params):
@@ -50,6 +55,7 @@ def train_epoch(model, optim, train_loader, loss_fn):
 
     return losses / len(train_loader)
 
+
 def evaluate(model, validation_loader, loss_fn):
     '''
     Evaluates the network on the validation data by making a prediction and
@@ -74,9 +80,10 @@ def evaluate(model, validation_loader, loss_fn):
             
     return losses / len(validation_loader)
 
+
 def predict(model, test_loader, min_cl_size, min_samples):
     '''
-    Evaluates the network on the test data. Returns the predictions
+    Evaluates the network on the test data. Returns the predictions and scores.
     '''
     # Get the network in evaluation mode
     torch.set_grad_enabled(False)
@@ -95,16 +102,13 @@ def predict(model, test_loader, min_cl_size, min_samples):
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
+        # For evaluating the clustering performance on the (noisy) ground truth
         # noise = np.random.normal(0, 0.15, size=(track_params.shape[0], track_params.shape[1], track_params.shape[2]))
         # track_params += noise
+        # cluster_labels = clustering(track_params, min_cl_size, min_samples)
 
         cluster_labels = clustering(pred, min_cl_size, min_samples)
-        for i in [-1, 0, 1, 2, 3]:
-            if i in cluster_labels[0]:
-                stuff = [j for j, ltr in enumerate(cluster_labels[0]) if ltr == i]
-                stuff2 = [track_labels[0][j] for j in stuff]
-                print(i, stuff2)
-        # print(cluster_labels, track_labels)
+
         event_score, scores = calc_score_trackml(cluster_labels[0], track_labels[0])
         score += event_score
         perfects += scores[0]
@@ -115,6 +119,7 @@ def predict(model, test_loader, min_cl_size, min_samples):
             predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
 
     return predictions, score/len(test_loader), perfects/len(test_loader), doubles/len(test_loader), lhcs/len(test_loader)
+
 
 if __name__ == "__main__":
     NUM_EPOCHS = 5
