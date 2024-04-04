@@ -62,7 +62,6 @@ def main():
     emb_dim = wandb.config.emb_dim
     nr_heads = wandb.config.nr_heads
     dim_ff = wandb.config.dim_ff
-#    drop = wandb.config.drop
     if emb_dim % nr_heads == 0:
         train_model(num_enc_layers, emb_dim, nr_heads, dim_ff)
 
