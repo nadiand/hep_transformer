@@ -6,7 +6,7 @@ import random
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
-from model import PAD_TOKEN
+from dataset import PAD_TOKEN
 from domain_decomposition import split_event
 
 
