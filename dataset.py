@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader, Dataset, random_split
 import numpy as np
 import pandas as pd
 
-from model import PAD_TOKEN
+PAD_TOKEN = -1
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class HitsDataset(Dataset):
@@ -31,7 +31,10 @@ def get_dataloaders(dataset, train_frac, valid_frac, test_frac, batch_size):
 
 def load_linear_2d_data(data_path):
     """
-    Note: this function does not pad the data and assumes all events have the same number of hits
+    Function for reading .csv file with 2D linear coordinates and creating tensors
+    containing the hits and ground truth data from it.
+    Note: this function does not pad the data and assumes all events have the 
+    same number of hits.
     """
     full_data = pd.read_csv(data_path, sep=",")
     full_data = full_data.sample(frac=1)
@@ -49,6 +52,12 @@ def load_linear_2d_data(data_path):
     return hits_data, track_params_data, hit_classes_data
 
 def load_linear_3d_data(data_path, max_num_hits):
+    """
+    Function for reading .csv file with 3D linear coordinates and creating tensors
+    containing the hits and ground truth data from it.
+    max_num_hits denotes the size of the largest event, to pad the other events
+    up to.
+    """
     full_data = pd.read_csv(data_path, sep=";")
     full_data = full_data.sample(frac=1)
     
@@ -79,6 +88,12 @@ def load_linear_3d_data(data_path, max_num_hits):
     return hits_data, track_params_data, hit_classes_data
 
 def load_curved_3d_data(data_path, max_num_hits):
+    """
+    Function for reading .csv file with 3D helical coordinates and creating tensors
+    containing the hits and ground truth data from it.
+    max_num_hits denotes the size of the largest event, to pad the other events
+    up to.
+    """
     full_data = pd.read_csv(data_path, sep=";")
     full_data = full_data.sample(frac=1)
     

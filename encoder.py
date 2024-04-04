@@ -5,6 +5,10 @@ from torch import Tensor
 import torch.nn.functional as F
 
 class TransformerEncoderLayer(Module):
+    """
+    Code taken and adapted from official pytorch implementation of TransformerEncoderLayer:
+    https://pytorch.org/docs/stable/generated/torch.nn.TransformerEncoderLayer.html
+    """
     __constants__ = ['batch_first', 'norm_first']
 
     def __init__(self, d_model: int, nhead: int, dim_feedforward: int = 2048, dropout: float = 0.1,
@@ -140,6 +144,7 @@ class CausalSelfAttention(Module):
             dropout = 0.0
             is_causal = False
 
+        # The logic ensuring flash attention is utilized
         with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):
             y = F.scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=dropout, is_causal=is_causal)
     

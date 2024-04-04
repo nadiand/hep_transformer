@@ -3,8 +3,8 @@ import torch.nn as nn
 import numpy as np
 from hdbscan import HDBSCAN
 
-from model import TransformerClassifier, PAD_TOKEN, save_model
-from dataset import HitsDataset, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
+from model import TransformerClassifier, save_model
+from dataset import HitsDataset, PAD_TOKEN, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
 from scoring import calc_score, calc_score_trackml
 from trackml_data import load_trackml_data
 
@@ -99,6 +99,12 @@ def predict(model, test_loader, min_cl_size, min_samples):
         # track_params += noise
 
         cluster_labels = clustering(pred, min_cl_size, min_samples)
+        for i in [-1, 0, 1, 2, 3]:
+            if i in cluster_labels[0]:
+                stuff = [j for j, ltr in enumerate(cluster_labels[0]) if ltr == i]
+                stuff2 = [track_labels[0][j] for j in stuff]
+                print(i, stuff2)
+        # print(cluster_labels, track_labels)
         event_score, scores = calc_score_trackml(cluster_labels[0], track_labels[0])
         score += event_score
         perfects += scores[0]

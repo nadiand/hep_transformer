@@ -6,8 +6,8 @@ import pandas as pd
 from torch.utils.data import DataLoader
 from hdbscan import HDBSCAN
 
-from model import TransformerClassifier, PAD_TOKEN, save_model
-from dataset import HitsDataset, get_dataloaders
+from model import TransformerClassifier, save_model
+from dataset import HitsDataset, get_dataloaders, PAD_TOKEN
 from scoring import calc_score_trackml
 from trackml_data import load_trackml_data
 
