@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
-from collections import Counter
 
+
+# Following two functions are directly taken from the official TrackML github repository:
+# https://github.com/LAL/trackml-library/tree/master
 def _analyze_tracks(truth, submission):
     """Compute the majority particle, hit counts, and weight for each track.
 
@@ -102,6 +104,7 @@ def _analyze_tracks(truth, submission):
             'major_nhits', 'major_weight']
     return pd.DataFrame.from_records(tracks, columns=cols)
 
+
 def score_event(tracks):
     """Compute the TrackML event score for a single event.
 
@@ -118,8 +121,12 @@ def score_event(tracks):
     return tracks['major_weight'][good_track].sum()
 
 
-def tracking_metrics_gnn(tracks, n_particles, predicted_count_thld=3):
-    # Code adapted from https://github.com/gnn-tracking/gnn_tracking/blob/main/src/gnn_tracking/metrics/cluster_metrics.py
+def efficiency_scores(tracks, n_particles, predicted_count_thld=3):
+    """
+    Function to calculate the perfect match efficiency, double majority match
+    efficiency and LHC-style efficiency of tracks. 
+    Code adapted from https://github.com/gnn-tracking/gnn_tracking/blob/main/src/gnn_tracking/metrics/cluster_metrics.py
+    """
 
     tracks['maj_frac'] = np.true_divide(tracks['major_nhits'], tracks['nhits'])
     tracks['maj_pid_frac'] = np.true_divide(tracks['major_nhits'], tracks['major_particle_nhits'])
@@ -143,8 +150,9 @@ def tracking_metrics_gnn(tracks, n_particles, predicted_count_thld=3):
 
 def calc_score(pred_lbl, true_lbl):
     """
-    pred_lbl is a tensor containing predicted cluster IDs from a single event
-    true_lbl is a tensor containing the true cluster IDs from a single event (track_id from dataset)
+    Function for calculating the TrackML score and efficiency scores of REDVID data, based 
+    on the predicted cluster labels pred_lbl and true particle IDs true_lbl from a single
+    event. Every hit is given weight of 1.
     """
     truth_rows, pred_rows = [], []
     for ind, part in enumerate(true_lbl):
@@ -161,12 +169,14 @@ def calc_score(pred_lbl, true_lbl):
     nr_particles = len(truth['particle_id'].unique().tolist())
     
     tracks = _analyze_tracks(truth, submission) 
-    return score_event(tracks), tracking_metrics_gnn(tracks, nr_particles)
+    return score_event(tracks), efficiency_scores(tracks, nr_particles)
+
 
 def calc_score_trackml(pred_lbl, true_lbl):
     """
-    pred_lbl is a tensor containing predicted cluster IDs from a single event
-    true_lbl is a tensor containing the true cluster IDs from a single event (track_id from dataset)
+    Function for calculating the TrackML score and efficiency scores of TrackML data, based 
+    on the predicted cluster labels pred_lbl and true particle IDs true_lbl from a single
+    event. 
     """
     truth_rows, pred_rows = [], []
     for ind, part in enumerate(true_lbl):
@@ -183,4 +193,4 @@ def calc_score_trackml(pred_lbl, true_lbl):
     nr_particles = len(truth['particle_id'].unique().tolist())
 
     tracks = _analyze_tracks(truth, submission) 
-    return score_event(tracks), tracking_metrics_gnn(tracks, nr_particles)
+    return score_event(tracks), efficiency_scores(tracks, nr_particles)
