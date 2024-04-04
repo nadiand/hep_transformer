@@ -2,20 +2,25 @@ import torch
 import torch.nn as nn
 import torch.cuda as cuda
 import numpy as np
-import time
 
-from time import perf_counter_ns, process_time_ns
+from time import process_time_ns
 
 from training import clustering
 from scoring import calc_score, calc_score_trackml
-from model import TransformerClassifier, PAD_TOKEN
-from dataset import HitsDataset, get_dataloaders, load_curved_3d_data, load_linear_3d_data, load_linear_2d_data
+from model import TransformerRegressor
+from dataset import HitsDataset, get_dataloaders, PAD_TOKEN, load_curved_3d_data, load_linear_3d_data, load_linear_2d_data
 from trackml_data import load_trackml_data
 from plotting import *
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
 def predict_with_stats(model, test_loader, min_cl_size, min_samples):
+    """
+    Evaluates model on test_loader, using the specified HDBSCAN parameters,
+    and returns the average MSE, TrackML score, perfect match efficiency,
+    double majority match efficiency, and LHC-style match efficiency.
+    """
     # Get the network in evaluation mode
     torch.set_grad_enabled(False)
     model.eval()
@@ -28,11 +33,6 @@ def predict_with_stats(model, test_loader, min_cl_size, min_samples):
 
     for data in test_loader:
         event_id, hits, track_params, track_labels = data
-
-        # Make prediction
-        hits = hits
-        track_params = track_params
-        track_labels = track_labels
 
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         pred = model(hits, padding_mask)
@@ -63,12 +63,16 @@ def predict_with_stats(model, test_loader, min_cl_size, min_samples):
     return predictions
 
 
-def record_cuda_cpu_time(model, test_loader, min_cl_size, min_samples):
+def measure_speed(model, test_loader, min_cl_size, min_samples):
+    """
+    Evaluates model on test_loader, using the specified HDBSCAN parameters,
+    and returns the CPU and GPU time of the pipeline.
+    """
     # Get the network in evaluation mode
     torch.set_grad_enabled(False)
     model.eval()
 
-    # Time performance
+    # Time performance bookkeeping
     cuda_times = []
     cpu_times = []
     start_event = cuda.Event(enable_timing=True)
@@ -90,7 +94,7 @@ def record_cuda_cpu_time(model, test_loader, min_cl_size, min_samples):
         cuda_times.append(elapsed_time_ms)
 
         start_cpu_time = process_time_ns()
-        cluster_labels = clustering(pred, min_cl_size, min_samples)
+        _ = clustering(pred, min_cl_size, min_samples)
         end_cpu_time = process_time_ns()
         cpu_times.append(end_cpu_time - start_cpu_time)
 
@@ -98,7 +102,7 @@ def record_cuda_cpu_time(model, test_loader, min_cl_size, min_samples):
     print("Avg CPU time:", sum(cpu_times[1:])/len(cpu_times[1:]))
     
 
-transformer = TransformerClassifier(num_encoder_layers=6,
+transformer = TransformerRegressor(num_encoder_layers=6,
                                     d_model=32,
                                     n_head=4,
                                     input_size=3,
@@ -122,7 +126,7 @@ train_loader, valid_loader, test_loader = get_dataloaders(dataset,
 print('data loaded')
 
 min_cl_size, min_samples = 5, 2
-preds = record_cuda_cpu_time(transformer, test_loader, min_cl_size, min_samples)
+preds = measure_speed(transformer, test_loader, min_cl_size, min_samples)
 
 # preds = list(preds.values())
 # for param in ['theta', 'phi', 'q']:
