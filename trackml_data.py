@@ -7,7 +7,7 @@ import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 from dataset import PAD_TOKEN
-from domain_decomposition import split_event
+from domain_decomposition import split_event #at least make a function which uses this TODO
 
 
 def take_inner_detector_trackml_data(event_id, file_name):
