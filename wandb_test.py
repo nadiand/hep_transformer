@@ -1,9 +1,10 @@
 import torch
-from model import TransformerRegressor
-from dataset import HitsDataset, get_dataloaders, load_linear_3d_data, load_linear_2d_data, load_curved_3d_data
-from training_flash import *
 import wandb
-from trackml_data import load_trackml_data
+
+from model import TransformerRegressor
+from training_flash import *
+from data_processing.dataset import HitsDataset, get_dataloaders, load_linear_3d_data, load_linear_2d_data, load_curved_3d_data
+from data_processing.trackml_data import load_trackml_data
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 torch.manual_seed(37)

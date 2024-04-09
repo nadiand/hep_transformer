@@ -4,9 +4,9 @@ import numpy as np
 from hdbscan import HDBSCAN
 
 from model import TransformerRegressor, save_model
-from dataset import HitsDataset, get_dataloaders, PAD_TOKEN
-from scoring import calc_score_trackml
-from trackml_data import load_trackml_data
+from data_processing.dataset import HitsDataset, get_dataloaders, PAD_TOKEN
+from data_processing.trackml_data import load_trackml_data
+from evaluation.scoring import calc_score_trackml
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 

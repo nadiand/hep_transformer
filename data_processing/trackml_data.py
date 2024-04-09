@@ -94,7 +94,7 @@ def load_trackml_data(data, max_num_hits, normalize=False, chunking=False):
     chunking allows for reading .csv files in chunks.
     """
     if not chunking:
-        data = pd.read_csv(data)
+        data = pd.read_csv(data).head(10000)
 
     # Normalize the data if applicable
     if normalize:

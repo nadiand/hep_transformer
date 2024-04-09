@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from encoder import TransformerEncoderLayer as custom_encoder
+from custom_encoder import TransformerEncoderLayer as custom_encoder
 
 
 class AngleDifferenceLoss(nn.Module):

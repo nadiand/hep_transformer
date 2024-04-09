@@ -5,12 +5,12 @@ import numpy as np
 
 from time import process_time_ns
 
-from training import clustering
+from ..training import clustering
+from ..model import TransformerRegressor
+from ..data_processing.dataset import HitsDataset, get_dataloaders, PAD_TOKEN, load_curved_3d_data, load_linear_3d_data, load_linear_2d_data
+from ..data_processing.trackml_data import load_trackml_data
+from plotting import plot_heatmap
 from scoring import calc_score, calc_score_trackml
-from model import TransformerRegressor
-from dataset import HitsDataset, get_dataloaders, PAD_TOKEN, load_curved_3d_data, load_linear_3d_data, load_linear_2d_data
-from trackml_data import load_trackml_data
-from plotting import *
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 

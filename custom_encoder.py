@@ -4,6 +4,7 @@ from torch.nn import Module, Linear, LayerNorm, Dropout
 from torch import Tensor
 import torch.nn.functional as F
 
+
 class TransformerEncoderLayer(Module):
     """
     Code taken and adapted from official pytorch implementation of TransformerEncoderLayer:

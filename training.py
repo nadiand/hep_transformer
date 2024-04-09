@@ -4,9 +4,9 @@ import numpy as np
 from hdbscan import HDBSCAN
 
 from model import TransformerRegressor, save_model
-from dataset import HitsDataset, PAD_TOKEN, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
-from scoring import calc_score, calc_score_trackml
-from trackml_data import load_trackml_data
+from data_processing.dataset import HitsDataset, PAD_TOKEN, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
+from evaluation.scoring import calc_score, calc_score_trackml
+from data_processing.trackml_data import load_trackml_data
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -103,12 +103,11 @@ def predict(model, test_loader, min_cl_size, min_samples):
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
         # For evaluating the clustering performance on the (noisy) ground truth
-        # noise = np.random.normal(0, 0.15, size=(track_params.shape[0], track_params.shape[1], track_params.shape[2]))
+        # noise = np.random.laplace(0, 0.05, size=(track_params.shape[0], track_params.shape[1], track_params.shape[2]))
         # track_params += noise
         # cluster_labels = clustering(track_params, min_cl_size, min_samples)
 
         cluster_labels = clustering(pred, min_cl_size, min_samples)
-
         event_score, scores = calc_score_trackml(cluster_labels[0], track_labels[0])
         score += event_score
         perfects += scores[0]
