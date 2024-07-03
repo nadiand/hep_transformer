@@ -94,9 +94,13 @@ def measure_speed(model, test_loader, min_cl_size, min_samples):
 
     for data in test_loader:
         _, hits, track_params, track_labels = data
-        start_event.record()
 
+        pad_start_cpu_time = process_time_ns()
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
+        pad_end_cpu_time = process_time_ns()
+        diff = pad_end_cpu_time - pad_start_cpu_time
+        
+        start_event.record()
         pred = model(hits, padding_mask)
         pred = torch.unsqueeze(pred[~padding_mask], 0)
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
@@ -110,7 +114,8 @@ def measure_speed(model, test_loader, min_cl_size, min_samples):
         start_cpu_time = process_time_ns()
         _ = clustering(pred, min_cl_size, min_samples)
         end_cpu_time = process_time_ns()
-        cpu_times.append(end_cpu_time - start_cpu_time)
+        cpu_total = diff + (end_cpu_time - start_cpu_time)
+        cpu_times.append(cpu_total)
 
     print("Avg CUDA time:", sum(cuda_times[1:])/len(cuda_times[1:]))
     print("Avg CPU time:", sum(cpu_times[1:])/len(cpu_times[1:]))
