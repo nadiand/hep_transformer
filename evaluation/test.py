@@ -1,9 +1,9 @@
 import torch
 
-from ..model import TransformerRegressor
-from ..training import predict
-from ..data_processing.dataset import HitsDataset, get_dataloaders, load_linear_3d_data, load_linear_2d_data, load_curved_3d_data
-from ..data_processing.trackml_data import load_trackml_data, load_trackml_data_pt
+from model import TransformerRegressor
+from training import predict
+from data_processing.dataset import HitsDataset, get_dataloaders, load_linear_3d_data, load_linear_2d_data, load_curved_3d_data
+from data_processing.trackml_data import load_trackml_data, load_trackml_data_pt
 from evaluation.plotting import plot_heatmap
 
 

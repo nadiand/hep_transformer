@@ -5,10 +5,10 @@ import numpy as np
 
 from time import process_time_ns
 
-from ..training import clustering
-from ..model import TransformerRegressor
-from ..data_processing.dataset import HitsDataset, get_dataloaders, PAD_TOKEN, load_curved_3d_data, load_linear_3d_data, load_linear_2d_data
-from ..data_processing.trackml_data import load_trackml_data
+from training import clustering
+from model import TransformerRegressor
+from data_processing.dataset import HitsDataset, get_dataloaders, PAD_TOKEN, load_curved_3d_data, load_linear_3d_data, load_linear_2d_data
+from data_processing.trackml_data import load_trackml_data
 from evaluation.plotting import plot_heatmap
 from evaluation.scoring import calc_score, calc_score_trackml
 
