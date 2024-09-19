@@ -6,7 +6,7 @@ import random
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
-from dataset import PAD_TOKEN
+from data_processing.dataset import PAD_TOKEN
 
 
 def take_inner_detector_trackml_data(event_id, file_name):
