@@ -5,3 +5,4 @@ wandb/
 *.csv
 scratch_pad/
 .vscode/
+*.egg-info/
