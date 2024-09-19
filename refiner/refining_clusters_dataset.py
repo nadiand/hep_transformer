@@ -3,7 +3,7 @@ from torch.utils.data import Dataset
 import numpy as np
 import pandas as pd
 
-from ..data_processing.dataset import PAD_TOKEN
+from data_processing.dataset import PAD_TOKEN
 
 
 class ClustersDataset(Dataset):

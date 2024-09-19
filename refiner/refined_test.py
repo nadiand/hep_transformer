@@ -1,11 +1,11 @@
 import torch
 import pandas as pd
 
-from ..model import TransformerRegressor
-from ..training import clustering
-from ..data_processing.dataset import HitsDataset, get_dataloaders, PAD_TOKEN
-from ..evaluation.plotting import plot_heatmap
-from ..evaluation.scoring import calc_score_trackml
+from model import TransformerRegressor
+from training import clustering
+from data_processing.dataset import HitsDataset, get_dataloaders, PAD_TOKEN
+from evaluation.plotting import plot_heatmap
+from evaluation.scoring import calc_score_trackml
 from refiner.training_refiner import refine
 from refiner.refining_clusters_dataset import load_data_for_refiner
 
