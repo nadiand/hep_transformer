@@ -9,8 +9,8 @@ from ..training import clustering
 from ..model import TransformerRegressor
 from ..data_processing.dataset import HitsDataset, get_dataloaders, PAD_TOKEN, load_curved_3d_data, load_linear_3d_data, load_linear_2d_data
 from ..data_processing.trackml_data import load_trackml_data
-from plotting import plot_heatmap
-from scoring import calc_score, calc_score_trackml
+from evaluation.plotting import plot_heatmap
+from evaluation.scoring import calc_score, calc_score_trackml
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -97,10 +97,8 @@ def measure_speed(model, test_loader, min_cl_size, min_samples):
         start_event.record()
 
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
-        pred = model(hits, padding_mask)
-        pred = torch.unsqueeze(pred[~padding_mask], 0)
-        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
-        track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
+        with torch.cuda.amp.autocast():
+            pred = model(hits, padding_mask)
         
         end_event.record()
         cuda.synchronize()
@@ -108,7 +106,11 @@ def measure_speed(model, test_loader, min_cl_size, min_samples):
         cuda_times.append(elapsed_time_ms)
 
         start_cpu_time = process_time_ns()
+        pred = torch.unsqueeze(pred[~padding_mask], 0)
+        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
+        track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
         _ = clustering(pred, min_cl_size, min_samples)
+
         end_cpu_time = process_time_ns()
         cpu_times.append(end_cpu_time - start_cpu_time)
 
@@ -125,7 +127,7 @@ transformer = TransformerRegressor(num_encoder_layers=6,
                                     dropout=0.1)
 transformer = transformer.to(DEVICE)
 
-checkpoint = torch.load("models/10to50_sin_cos_best", map_location=torch.device('cpu'))
+checkpoint = torch.load("models/10to50_tml_best", map_location=torch.device('cpu'))
 transformer.load_state_dict(checkpoint['model_state_dict'])
 pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
 print("Total trainable params: {}".format(pytorch_total_params))
@@ -142,6 +144,6 @@ print('data loaded')
 min_cl_size, min_samples = 5, 2
 preds = measure_speed(transformer, test_loader, min_cl_size, min_samples)
 
-# preds = list(preds.values())
-# for param in ['theta', 'phi', 'q']:
-#     plot_heatmap(preds, param, "test")
+preds = list(preds.values())
+for param in ['theta', 'phi', 'q']:
+    plot_heatmap(preds, param, "test")
