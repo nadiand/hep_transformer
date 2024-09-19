@@ -6,8 +6,8 @@ from ..training import clustering
 from ..data_processing.dataset import HitsDataset, get_dataloaders, PAD_TOKEN
 from ..evaluation.plotting import plot_heatmap
 from ..evaluation.scoring import calc_score_trackml
-from training_refiner import refine
-from refining_clusters_dataset import load_data_for_refiner
+from refiner.training_refiner import refine
+from refiner.refining_clusters_dataset import load_data_for_refiner
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 

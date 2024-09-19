@@ -4,7 +4,7 @@ import numpy as np
 
 from ..model import TransformerRegressor, save_model
 from ..data_processing.dataset import get_dataloaders, PAD_TOKEN
-from refining_clusters_dataset import load_data_for_refiner, ClustersDataset
+from refiner.refining_clusters_dataset import load_data_for_refiner, ClustersDataset
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
