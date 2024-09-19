@@ -156,7 +156,7 @@ def calc_score(pred_lbl, true_lbl):
     """
     truth_rows, pred_rows = [], []
     for ind, part in enumerate(true_lbl):
-        truth_rows.append((ind, part.item(), 1))
+        truth_rows.append((ind, part[0].item(), 1))
 
     for ind, pred in enumerate(pred_lbl):
         pred_rows.append((ind, pred.item()))
