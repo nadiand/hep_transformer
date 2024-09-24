@@ -128,6 +128,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_nr_hits', type=int)
     parser.add_argument('--data_path', type=str)
     parser.add_argument('--model_name', type=str)
+    parser.add_argument('--data_type', type=str, choices=['2d', 'linear', 'curved'])
 
     parser.add_argument('--nr_enc_layers', type=int, default=6)
     parser.add_argument('--dropout', type=float, default=0.1)
@@ -138,8 +139,16 @@ if __name__ == "__main__":
 
     torch.manual_seed(37)  # for reproducibility
 
+    data_func = None
+    if args.data_type == '2d':
+        data_func = load_linear_2d_data
+    elif args.data_type == 'linear':
+        data_func = load_linear_3d_data
+    elif args.data_type == 'curved':
+        data_func = load_curved_3d_data
+
     # Load and split dataset into training, validation and test sets, and get dataloaders
-    hits_data, track_params_data, track_classes_data = load_curved_3d_data(data_path=args.data_path, max_num_hits=args.max_nr_hits)
+    hits_data, track_params_data, track_classes_data = data_func(data_path=args.data_path, max_num_hits=args.max_nr_hits)
     dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
     train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,

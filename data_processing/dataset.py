@@ -29,7 +29,7 @@ def get_dataloaders(dataset, train_frac, valid_frac, test_frac, batch_size):
 
     return train_loader, valid_loader, test_loader
 
-def load_linear_2d_data(data_path):
+def load_linear_2d_data(data_path, max_num_hits=None):
     """
     Function for reading .csv file with 2D linear coordinates and creating tensors
     containing the hits and ground truth data from it.
