@@ -85,7 +85,7 @@ def transform_trackml_data(event_id, additional_id, min_nr_particles, max_nr_par
         final_data.to_csv(f'trackml_{min_nr_particles}to{max_nr_particles}tracks.csv', mode='a', index=False, header=False)
 
 
-def load_trackml_data(data, max_num_hits, normalize=False, chunking=False):
+def load_trackml_data(data, max_num_hits, normalize=True, chunking=False):
     """
     Function for reading .csv file with TrackML data and creating tensors
     containing the hits and ground truth information from it.
