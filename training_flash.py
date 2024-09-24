@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from hdbscan import HDBSCAN
+import argparse
 
 from model import TransformerRegressor, save_model
 from data_processing.dataset import HitsDataset, get_dataloaders, PAD_TOKEN
@@ -137,15 +138,24 @@ def predict(model, test_loader, min_cl_size, min_samples):
 
 
 if __name__ == "__main__":
-    NUM_EPOCHS = 500
-    EARLY_STOPPING = 10
-    MODEL_NAME = "flash"
-    MAX_NUM_HITS = 5000
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--nr_epochs', type=int, default=100)
+    parser.add_argument('--early_stop', type=int, default=50)
+    parser.add_argument('--max_nr_hits', type=int)
+    parser.add_argument('--data_path', type=str)
+    parser.add_argument('--model_name', type=str)
+
+    parser.add_argument('--nr_enc_layers', type=int, default=6)
+    parser.add_argument('--dropout', type=float, default=0.1)
+    parser.add_argument('--embedding_size', type=int, default=64)
+    parser.add_argument('--nr_heads', type=int, default=8)
+    parser.add_argument('--hidden_dim', type=int, default=128)
+    args = parser.parse_args()
 
     torch.manual_seed(37)  # for reproducibility
 
     # Loading data
-    hits_data, track_params_data, track_classes_data = load_trackml_data(data="200to500tracks_40k_old.csv", max_num_hits=MAX_NUM_HITS, normalize=True)
+    hits_data, track_params_data, track_classes_data = load_trackml_data(data=args.data_path, max_num_hits=args.max_nr_hits, normalize=True)
     dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
     train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,
@@ -154,13 +164,13 @@ if __name__ == "__main__":
                                                               batch_size=1)
 
     # Transformer model
-    transformer = TransformerRegressor(num_encoder_layers=6,
-                                        d_model=64,
-                                        n_head=8,
+    transformer = TransformerRegressor(num_encoder_layers=args.nr_enc_layers,
+                                        d_model=args.embedding_size,
+                                        n_head=args.nr_heads,
                                         input_size=3,
                                         output_size=3,
-                                        dim_feedforward=128,
-                                        dropout=0.1,
+                                        dim_feedforward=args.hidden_dim,
+                                        dropout=args.dropout,
                                         use_flashattn=True)
     transformer = transformer.to(DEVICE)
     pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
@@ -175,7 +185,7 @@ if __name__ == "__main__":
     min_val_loss = np.inf
     count = 0
 
-    for epoch in range(NUM_EPOCHS):
+    for epoch in range(args.nr_epochs):
         # Train the model
         train_loss = train_epoch(transformer, optimizer, train_loader, loss_fn, scaler)
 
@@ -190,13 +200,13 @@ if __name__ == "__main__":
         if val_loss < min_val_loss:
             # If the model has a new best validation loss, save it as "the best"
             min_val_loss = val_loss
-            save_model(transformer, optimizer, "best", val_losses, train_losses, epoch, count, MODEL_NAME)
+            save_model(transformer, optimizer, "best", val_losses, train_losses, epoch, count, args.model_name)
             count = 0
         else:
             # If the model's validation loss isn't better than the best, save it as "the last"
-            save_model(transformer, optimizer, "last", val_losses, train_losses, epoch, count, MODEL_NAME)
+            save_model(transformer, optimizer, "last", val_losses, train_losses, epoch, count, args.model_name)
             count += 1
 
-        if count >= EARLY_STOPPING:
+        if count >= args.early_stopping:
             print("Early stopping...")
             break
