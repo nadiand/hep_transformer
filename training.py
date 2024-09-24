@@ -128,7 +128,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_nr_hits', type=int)
     parser.add_argument('--data_path', type=str)
     parser.add_argument('--model_name', type=str)
-    parser.add_argument('--data_type', type=str, choices=['2d', 'linear', 'curved'])
+    parser.add_argument('--data_type', type=str, choices=['2d', 'linear', 'curved', 'trackml'])
 
     parser.add_argument('--nr_enc_layers', type=int, default=6)
     parser.add_argument('--dropout', type=float, default=0.1)
@@ -140,12 +140,19 @@ if __name__ == "__main__":
     torch.manual_seed(37)  # for reproducibility
 
     data_func = None
+    in_size = 3
+    out_size = 3
     if args.data_type == '2d':
         data_func = load_linear_2d_data
+        in_size = 2
+        out_size = 1
     elif args.data_type == 'linear':
         data_func = load_linear_3d_data
     elif args.data_type == 'curved':
         data_func = load_curved_3d_data
+    elif args.data_type == 'trackml':
+        data_func = load_trackml_data
+        out_size = 4
 
     # Load and split dataset into training, validation and test sets, and get dataloaders
     hits_data, track_params_data, track_classes_data = data_func(data_path=args.data_path, max_num_hits=args.max_nr_hits)
@@ -161,8 +168,8 @@ if __name__ == "__main__":
     transformer = TransformerRegressor(num_encoder_layers=args.nr_enc_layers,
                                         d_model=args.embedding_size,
                                         n_head=args.nr_heads,
-                                        input_size=3,
-                                        output_size=3,
+                                        input_size=in_size,
+                                        output_size=out_size,
                                         dim_feedforward=args.hidden_dim,
                                         dropout=args.dropout)
     transformer = transformer.to(DEVICE)
