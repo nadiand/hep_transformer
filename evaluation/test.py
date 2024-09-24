@@ -29,17 +29,22 @@ if __name__ == "__main__":
     data_func = None
     in_size = 3
     out_size = 3
+    params = []
     if args.data_type == '2d':
         data_func = load_linear_2d_data
         in_size = 2
         out_size = 1
+        params = ['slope']
     elif args.data_type == 'linear':
         data_func = load_linear_3d_data
+        params = ["theta", "sinphi", "cosphi"]
     elif args.data_type == 'curved':
         data_func = load_curved_3d_data
+        params = ["radial_coeff", "pitch_coeff", "azimuthal_coeff"]
     elif args.data_type == 'trackml':
         data_func = load_trackml_data
         out_size = 4
+        params = ["theta", "sinphi", "cosphi", "q"]
 
     transformer = TransformerRegressor(num_encoder_layers=args.nr_enc_layers,
                                         d_model=args.embedding_size,
@@ -73,5 +78,5 @@ if __name__ == "__main__":
 
             if cl_size == 5 and min_sam == 2:
                 preds = list(preds.values())
-                for param in ["theta", "sinphi", "cosphi", "q"]:
+                for param in params:
                     plot_heatmap(preds, param, args.plot_name)
