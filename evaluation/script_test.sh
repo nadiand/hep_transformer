@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=train              # Job name
+#SBATCH --job-name=test               # Job name
 #SBATCH --ntasks=1                    # Run on a single GPU
 #SBATCH --time=24:00:00               # Time limit hrs:min:sec
 #SBATCH --partition=gpu
@@ -17,4 +17,4 @@ pip install torch==2.1.2
 pip install scikit-learn
 pip install pandas
 
-python training.py --nr_epochs 10 --max_nr_hits 100 --data_path "hits_and_tracks_3d_3curved_events_all.csv" --model_name "3tracks_helical" --nr_enc_layers 2 --embedding_size 64 --hidden_dim 128 --data_type "curved"
+python test.py --max_nr_hits 100 --data_path "hits_and_tracks_3d_3curved_events_all.csv" --model_name "3tracks_helical" --nr_enc_layers 2 --embedding_size 64 --hidden_dim 128 --data_type "curved"
