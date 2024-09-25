@@ -20,8 +20,6 @@ if __name__ == "__main__":
     parser.add_argument('--embedding_size', type=int, default=32)
     parser.add_argument('--nr_heads', type=int, default=4)
     parser.add_argument('--hidden_dim', type=int, default=128)
-    
-    parser.add_argument('--plot_name', type=str)
     args = parser.parse_args()
 
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -79,4 +77,4 @@ if __name__ == "__main__":
             if cl_size == 5 and min_sam == 2:
                 preds = list(preds.values())
                 for param in params:
-                    plot_heatmap(preds, param, args.plot_name)
+                    plot_heatmap(preds, param, args.model_name)
