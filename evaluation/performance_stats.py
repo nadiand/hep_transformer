@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.cuda as cuda
 import numpy as np
-
+import argparse
 from time import process_time_ns
 
 from training import clustering
@@ -15,7 +15,7 @@ from evaluation.scoring import calc_score, calc_score_trackml
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-def predict_with_stats(model, test_loader, min_cl_size, min_samples):
+def predict_with_stats(model, test_loader, min_cl_size, min_samples, data_type):
     """
     Evaluates model on test_loader, using the specified HDBSCAN parameters,
     and returns the average MSE, TrackML score, perfect match efficiency,
@@ -54,7 +54,10 @@ def predict_with_stats(model, test_loader, min_cl_size, min_samples):
             cosphi_errors.append(line[2].item())
             q_errors.append(line[3].item())
 
-        event_score, scores = calc_score_trackml(cluster_labels[0], track_labels[0])
+        if data_type == 'trackml':
+            event_score, scores = calc_score_trackml(cluster_labels[0], track_labels[0])
+        else:
+             event_score, scores = calc_score(cluster_labels[0], track_labels[0])
         score += event_score
         perfects += scores[0]
         doubles += scores[1]
@@ -118,32 +121,68 @@ def measure_speed(model, test_loader, min_cl_size, min_samples):
     print("Avg CPU time:", sum(cpu_times[1:])/len(cpu_times[1:]))
     
 
-transformer = TransformerRegressor(num_encoder_layers=6,
-                                    d_model=32,
-                                    n_head=4,
-                                    input_size=3,
-                                    output_size=4,
-                                    dim_feedforward=128,
-                                    dropout=0.1)
-transformer = transformer.to(DEVICE)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--max_nr_hits', type=int)
+    parser.add_argument('--data_path', type=str)
+    parser.add_argument('--model_name', type=str)
+    parser.add_argument('--data_type', type=str, choices=['2d', 'linear', 'curved', 'trackml'])
 
-checkpoint = torch.load("models/10to50_tml_best", map_location=torch.device('cpu'))
-transformer.load_state_dict(checkpoint['model_state_dict'])
-pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
-print("Total trainable params: {}".format(pytorch_total_params))
+    parser.add_argument('--nr_enc_layers', type=int, default=6)
+    parser.add_argument('--dropout', type=float, default=0.1)
+    parser.add_argument('--embedding_size', type=int, default=32)
+    parser.add_argument('--nr_heads', type=int, default=4)
+    parser.add_argument('--hidden_dim', type=int, default=128)
+    parser.add_argument('--plot_name', type=str)
+    args = parser.parse_args()
 
-hits_data, track_params_data, track_classes_data = load_trackml_data(data="trackml_10to50tracks_40kevents.csv", max_num_hits=700, normalize=True)
-dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
-train_loader, valid_loader, test_loader = get_dataloaders(dataset,
-                                                              train_frac=0.7,
-                                                              valid_frac=0.15,
-                                                              test_frac=0.15,
-                                                              batch_size=1)
-print('data loaded')
+    data_func = None
+    in_size = 3
+    out_size = 3
+    if args.data_type == '2d':
+        data_func = load_linear_2d_data
+        in_size = 2
+        out_size = 1
+        params = ['slope']
+    elif args.data_type == 'linear':
+        data_func = load_linear_3d_data
+        params = ["theta", "sinphi", "cosphi"]
+    elif args.data_type == 'curved':
+        data_func = load_curved_3d_data
+        params = ["radial_coeff", "pitch_coeff", "azimuthal_coeff"]
+    elif args.data_type == 'trackml':
+        data_func = load_trackml_data
+        out_size = 4
+        params = ["theta", "sinphi", "cosphi", "q"]
 
-min_cl_size, min_samples = 5, 2
-preds = measure_speed(transformer, test_loader, min_cl_size, min_samples)
+    transformer = TransformerRegressor(num_encoder_layers=args.nr_enc_layers,
+                                        d_model=args.embedding_size,
+                                        n_head=args.nr_heads,
+                                        input_size=in_size,
+                                        output_size=out_size,
+                                        dim_feedforward=args.hidden_dim,
+                                        dropout=args.dropout)
+    transformer = transformer.to(DEVICE)
 
-preds = list(preds.values())
-for param in ['theta', 'phi', 'q']:
-    plot_heatmap(preds, param, "test")
+    checkpoint = torch.load(args.model_name, map_location=torch.device('cpu'))
+    transformer.load_state_dict(checkpoint['model_state_dict'])
+    pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
+    print("Total trainable params: {}".format(pytorch_total_params))
+
+    hits_data, track_params_data, track_classes_data = data_func(data=args.data_path, max_num_hits=args.max_nr_hits)
+    dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
+    train_loader, valid_loader, test_loader = get_dataloaders(dataset,
+                                                                train_frac=0.7,
+                                                                valid_frac=0.15,
+                                                                test_frac=0.15,
+                                                                batch_size=1)
+    print('data loaded')
+
+    min_cl_size, min_samples = 5, 2
+    _ = measure_speed(transformer, test_loader, min_cl_size, min_samples)
+
+    preds = predict_with_stats(transformer, test_loader, min_cl_size, min_samples, args.data_type)
+
+    preds = list(preds.values())
+    for param in params:
+        plot_heatmap(preds, param, args.plot_name)
