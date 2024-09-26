@@ -6,10 +6,10 @@ import torch.nn.functional as F
 
 
 class TransformerEncoderLayer(Module):
-    """
+    '''
     Code taken and adapted from official pytorch implementation of TransformerEncoderLayer:
     https://pytorch.org/docs/stable/generated/torch.nn.TransformerEncoderLayer.html
-    """
+    '''
     __constants__ = ['batch_first', 'norm_first']
 
     def __init__(self, d_model: int, nhead: int, dim_feedforward: int = 2048, dropout: float = 0.1,
@@ -105,10 +105,10 @@ def _get_activation_fn(activation: str) -> Callable[[Tensor], Tensor]:
 
     
 class CausalSelfAttention(Module):
-    """
+    '''
     Taken and adapted from pytorch tutorial on SDPA: 
     https://pytorch.org/tutorials/intermediate/scaled_dot_product_attention_tutorial.html#beta-implementing-high-performance-transformers-with-scaled-dot-product-attention-sdpa
-    """
+    '''
 
     def __init__(self, num_heads: int, embed_dimension: int, bias: bool=False, is_causal: bool=False, batch_first: bool=True, dropout: float=0.0):
         super().__init__()

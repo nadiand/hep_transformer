@@ -6,10 +6,10 @@ from custom_encoder import TransformerEncoderLayer as custom_encoder
 
 
 class AngleDifferenceLoss(nn.Module):
-    """
+    '''
     Implementation of Angle Difference Loss, which assumes the predictions and targets
     are angles (dealing with the rotational invariance problem).
-    """
+    '''
     def __init__(self):
         super(AngleDifferenceLoss, self).__init__()
 

@@ -13,10 +13,10 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def clustering(pred_params, min_cl_size, min_samples):
-    """
+    '''
     Function to perform HDBSCAN on the predicted track parameters, with specified
     HDBSCAN hyperparameters. Returns the associated cluster IDs.
-    """
+    '''
     clustering_algorithm = HDBSCAN(min_cluster_size=min_cl_size, min_samples=min_samples)
     cluster_labels = []
     for _, event_prediction in enumerate(pred_params):
@@ -165,7 +165,7 @@ if __name__ == "__main__":
                                                               valid_frac=0.15,
                                                               test_frac=0.15,
                                                               batch_size=64)
-    print("data loaded")
+    print("Data loaded")
 
     # Transformer model
     transformer = TransformerRegressor(num_encoder_layers=args.nr_enc_layers,
