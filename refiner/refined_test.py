@@ -1,5 +1,6 @@
 import torch
 import pandas as pd
+import argparse
 
 from model import TransformerRegressor
 from training import clustering
@@ -14,7 +15,9 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def predict_with_refined_clusters(regressor, test_loader, refiner, min_cl_size, min_samples):
     '''
-    TODO
+    Evaluates the network regressor on the test data. Returns the predictions and scores.
+    After the clustering stage, the refiner is used to increase the purity of the clusters.
+    The TrackML score is only calculated after the refiner has run.
     '''
     # Get the regressor in evaluation mode
     torch.set_grad_enabled(False)
@@ -62,44 +65,57 @@ def predict_with_refined_clusters(regressor, test_loader, refiner, min_cl_size, 
     return predictions, score/len(test_loader), perfects/len(test_loader), doubles/len(test_loader), lhcs/len(test_loader)
 
 
-transformer = TransformerRegressor(num_encoder_layers=6,
-                                    d_model=32,
-                                    n_head=4,
-                                    input_size=3,
-                                    output_size=4,
-                                    dim_feedforward=128,
-                                    dropout=0.1)
-transformer = transformer.to(DEVICE)
-checkpoint = torch.load("models/10to50_sin_cos_best", map_location=torch.device('cpu'))
-transformer.load_state_dict(checkpoint['model_state_dict'])
-pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
-print("Total trainable params: {}".format(pytorch_total_params))
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_path', type=str)
+    parser.add_argument('--model_name', type=str)
+    parser.add_argument('--refiner_model_name', type=str)
 
-refiner = TransformerRegressor(num_encoder_layers=3,
-                                    d_model=32,
-                                    n_head=2,
-                                    input_size=3,
-                                    output_size=4,
-                                    dim_feedforward=64,
-                                    dropout=0.1)
-refiner = refiner.to(DEVICE)
-checkpoint = torch.load("refiner_best", map_location=torch.device('cpu'))
-refiner.load_state_dict(checkpoint['model_state_dict'])
-pytorch_total_params = sum(p.numel() for p in refiner.parameters() if p.requires_grad)
-print("Total trainable params: {}".format(pytorch_total_params))
+    parser.add_argument('--nr_enc_layers', type=int, default=6)
+    parser.add_argument('--dropout', type=float, default=0.1)
+    parser.add_argument('--embedding_size', type=int, default=32)
+    parser.add_argument('--nr_heads', type=int, default=4)
+    parser.add_argument('--hidden_dim', type=int, default=128)
+    args = parser.parse_args()
 
-hits_data, track_params_data, track_classes_data = load_data_for_refiner(data="trackml_10to50tracks_40kevents.csv", normalize=True)
-dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
-train_loader, valid_loader, test_loader = get_dataloaders(dataset,
-                                                              train_frac=0.7,
-                                                              valid_frac=0.15,
-                                                              test_frac=0.15,
-                                                              batch_size=1)
-print('data loaded')
+    transformer = TransformerRegressor(num_encoder_layers=args.nr_enc_layers,
+                                        d_model=args.embedding_size,
+                                        n_head=args.nr_heads,
+                                        input_size=3,
+                                        output_size=4,
+                                        dim_feedforward=args.hidden_dim,
+                                        dropout=args.dropout)
+    transformer = transformer.to(DEVICE)
+    checkpoint = torch.load(args.model_name, map_location=torch.device('cpu'))
+    transformer.load_state_dict(checkpoint['model_state_dict'])
+    pytorch_total_params = sum(p.numel() for p in transformer.parameters() if p.requires_grad)
+    print("Total trainable params: {}".format(pytorch_total_params))
+
+    refiner = TransformerRegressor(num_encoder_layers=args.nr_enc_layers,
+                                        d_model=args.embedding_size,
+                                        n_head=args.nr_heads,
+                                        input_size=3,
+                                        output_size=4,
+                                        dim_feedforward=args.hidden_dim,
+                                        dropout=args.dropout)
+    refiner = refiner.to(DEVICE)
+    checkpoint = torch.load(args.refiner_model_name, map_location=torch.device('cpu'))
+    refiner.load_state_dict(checkpoint['model_state_dict'])
+    pytorch_total_params = sum(p.numel() for p in refiner.parameters() if p.requires_grad)
+    print("Total trainable params: {}".format(pytorch_total_params))
+
+    hits_data, track_params_data, track_classes_data = load_data_for_refiner(data=args.data_path, normalize=True)
+    dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
+    train_loader, valid_loader, test_loader = get_dataloaders(dataset,
+                                                                train_frac=0.7,
+                                                                valid_frac=0.15,
+                                                                test_frac=0.15,
+                                                                batch_size=1)
+    print('Data loaded')
 
 
-preds, score, perfect, double, lhc = predict_with_refined_clusters(transformer, test_loader, refiner, 5, 2)
-print(score, perfect, double, lhc)
-# preds = list(preds.values())
-# for param in ["theta", "phi", "q"]:
-#     plot_heatmap(preds, param, "test")
+    preds, score, perfect, double, lhc = predict_with_refined_clusters(transformer, test_loader, refiner, 5, 2)
+    print(score, perfect, double, lhc)
+    # preds = list(preds.values())
+    # for param in ["theta", "phi", "q"]:
+    #     plot_heatmap(preds, param, "test")
