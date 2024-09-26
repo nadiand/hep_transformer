@@ -82,7 +82,7 @@ def evaluate(model, validation_loader, loss_fn):
     return losses / len(validation_loader)
 
 
-def predict(model, test_loader, min_cl_size, min_samples):
+def predict(model, test_loader, min_cl_size, min_samples, data_type):
     '''
     Evaluates the network on the test data. Returns the predictions and scores.
     '''
@@ -109,7 +109,10 @@ def predict(model, test_loader, min_cl_size, min_samples):
         # cluster_labels = clustering(track_params, min_cl_size, min_samples)
 
         cluster_labels = clustering(pred, min_cl_size, min_samples)
-        event_score, scores = calc_score_trackml(cluster_labels[0], track_labels[0])
+        if data_type == 'trackml':
+            event_score, scores = calc_score_trackml(cluster_labels[0], track_labels[0])
+        else:
+            event_score, scores = calc_score(cluster_labels[0], track_labels[0])
         score += event_score
         perfects += scores[0]
         doubles += scores[1]
