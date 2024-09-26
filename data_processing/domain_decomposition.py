@@ -2,12 +2,12 @@ import numpy as np
 import pandas as pd
 
 def make_bins(data, parameter, bin_edges, overlap):
-    """
+    '''
     Function that creates bins in parameter, using specified bin_edges and overlap.
     It creates additional binary columns in the data dataframe, denoting whether a 
     hit is in a certain bin. The rotational invariance problem of phi has been taken
     into account in the bin creation.
-    """
+    '''
     num_bins = len(bin_edges) - 1
     bin_names = [f'{parameter}_bin{i}' for i in range(1, num_bins + 1)]
 
@@ -23,9 +23,9 @@ def make_bins(data, parameter, bin_edges, overlap):
 
 
 def split_event(data, event_id):
-    """
+    '''
     Function for accomplishing domain decomposition of a single event.
-    """
+    '''
     overlap_theta = overlap_phi = 0.
 
     # Calculate theta and phi of each hit
@@ -81,9 +81,9 @@ def split_event(data, event_id):
 
 
 def evaluate_split_event(old_data, data):
-    """
+    '''
     Function meant to evaluate the efficiency of the domain decomposition.
-    """
+    '''
     # Make a dictionary with all particle_ids and the number of hits they have
     all_particle_ids = old_data['particle_id'].unique().tolist()
     particle_dict = {}
