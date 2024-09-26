@@ -13,6 +13,9 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def predict_with_refined_clusters(regressor, test_loader, refiner, min_cl_size, min_samples):
+    '''
+    TODO
+    '''
     # Get the regressor in evaluation mode
     torch.set_grad_enabled(False)
     regressor.eval()

@@ -7,11 +7,11 @@ from data_processing.dataset import PAD_TOKEN
 
 
 class ClustersDataset(Dataset):
-    """
+    '''
     Dataset class for the clusters of hits. Analogous to the HitsDataset, but 
     since the hits are already grouped (based on event ID and particle ID), we
     do not make use of labels.
-    """
+    '''
     def __init__(self, hit_clusters, track_params):
         self.hit_clusters = hit_clusters
         self.track_params = track_params
@@ -25,11 +25,11 @@ class ClustersDataset(Dataset):
 
 
 def load_data_for_refiner(data_path, normalize=False):
-    """
+    '''
     Identical to the load_trackml_data function from trackml_data.py. However, here
     the data is grouped by the combination of event ID and particle ID, and not 
     only by event ID.
-    """
+    '''
     data = pd.read_csv(data_path)
 
     if normalize:

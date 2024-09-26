@@ -72,9 +72,9 @@ def evaluate(model, validation_loader, loss_fn):
 
 
 def refine(model, data):
-    """
+    '''
     Use model to refine the predicted clusters contained in the dataframe data.
-    """
+    '''
     # Get the network in evaluation mode
     torch.set_grad_enabled(False)
     model.eval()
