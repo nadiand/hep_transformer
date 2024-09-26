@@ -5,7 +5,8 @@ import pandas as pd
 # Following two functions are directly taken from the official TrackML github repository:
 # https://github.com/LAL/trackml-library/tree/master
 def _analyze_tracks(truth, submission):
-    """Compute the majority particle, hit counts, and weight for each track.
+    '''
+    Compute the majority particle, hit counts, and weight for each track.
 
     Parameters
     ----------
@@ -19,7 +20,7 @@ def _analyze_tracks(truth, submission):
     pandas.DataFrame
         Contains track_id, nhits, major_particle_id, major_particle_nhits,
         major_nhits, and major_weight columns.
-    """
+    '''
     # true number of hits for each particle_id
     particles_nhits = truth['particle_id'].value_counts(sort=False)
     total_weight = truth['weight'].sum()
@@ -106,7 +107,8 @@ def _analyze_tracks(truth, submission):
 
 
 def score_event(tracks):
-    """Compute the TrackML event score for a single event.
+    '''
+    Compute the TrackML event score for a single event.
 
     Parameters
     ----------
@@ -114,7 +116,7 @@ def score_event(tracks):
         Truth information. Must have hit_id, particle_id, and weight columns.
     submission : pandas.DataFrame
         Proposed hit/track association. Must have hit_id and track_id columns.
-    """
+    '''
     purity_rec = np.true_divide(tracks['major_nhits'], tracks['nhits'])
     purity_maj = np.true_divide(tracks['major_nhits'], tracks['major_particle_nhits'])
     good_track = (0.5 < purity_rec) & (0.5 < purity_maj)
@@ -122,11 +124,11 @@ def score_event(tracks):
 
 
 def efficiency_scores(tracks, n_particles, predicted_count_thld=3):
-    """
+    '''
     Function to calculate the perfect match efficiency, double majority match
     efficiency and LHC-style efficiency of tracks. 
     Code adapted from https://github.com/gnn-tracking/gnn_tracking/blob/main/src/gnn_tracking/metrics/cluster_metrics.py
-    """
+    '''
 
     tracks['maj_frac'] = np.true_divide(tracks['major_nhits'], tracks['nhits'])
     tracks['maj_pid_frac'] = np.true_divide(tracks['major_nhits'], tracks['major_particle_nhits'])
@@ -149,11 +151,11 @@ def efficiency_scores(tracks, n_particles, predicted_count_thld=3):
 
 
 def calc_score(pred_lbl, true_lbl):
-    """
+    '''
     Function for calculating the TrackML score and efficiency scores of REDVID data, based 
     on the predicted cluster labels pred_lbl and true particle IDs true_lbl from a single
     event. Every hit is given weight of 1.
-    """
+    '''
     truth_rows, pred_rows = [], []
     for ind, part in enumerate(true_lbl):
         truth_rows.append((ind, part[0].item(), 1))
@@ -173,11 +175,11 @@ def calc_score(pred_lbl, true_lbl):
 
 
 def calc_score_trackml(pred_lbl, true_lbl):
-    """
+    '''
     Function for calculating the TrackML score and efficiency scores of TrackML data, based 
     on the predicted cluster labels pred_lbl and true particle IDs true_lbl from a single
     event. 
-    """
+    '''
     truth_rows, pred_rows = [], []
     for ind, part in enumerate(true_lbl):
         truth_rows.append((ind, part[0].item(), part[1].item()))

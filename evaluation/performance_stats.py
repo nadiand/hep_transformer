@@ -16,12 +16,12 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def predict_with_stats(model, test_loader, min_cl_size, min_samples, data_type):
-    """
+    '''
     Evaluates model on test_loader, using the specified HDBSCAN parameters,
     and returns the average MSE, TrackML score, perfect match efficiency,
     double majority match efficiency, LHC-style match efficiency, and 
     standard deviation of predictions.
-    """
+    '''
     # Get the network in evaluation mode
     torch.set_grad_enabled(False)
     model.eval()
@@ -81,10 +81,10 @@ def predict_with_stats(model, test_loader, min_cl_size, min_samples, data_type):
 
 
 def measure_speed(model, test_loader, min_cl_size, min_samples):
-    """
+    '''
     Evaluates model on test_loader, using the specified HDBSCAN parameters,
     and returns the CPU and GPU time of the pipeline.
-    """
+    '''
     # Get the network in evaluation mode
     torch.set_grad_enabled(False)
     model.eval()

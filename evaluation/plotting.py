@@ -8,6 +8,9 @@ colors = {-1: 'yellow', 0: 'red', 1: 'blue', 2: 'green', 3: 'purple', 4: 'brown'
 
 
 def convert_cylindrical_to_cartesian(r, theta, z):
+    '''
+    Function for coordinate conversion.
+    '''
     x = r*np.cos(theta)
     y = r*np.sin(theta)
     z = z
@@ -15,9 +18,11 @@ def convert_cylindrical_to_cartesian(r, theta, z):
 
 
 def visualize_event(data):
-    """
-    Code provided by Yue Zhao.
-    """
+    '''
+    Function for the plotting of hits in a 3D point cloud.
+    
+    Code by Yue Zhao.
+    '''
     fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111, projection='3d')
 
@@ -36,6 +41,11 @@ def visualize_event(data):
 
 
 def plot_heatmap(parameters, param, name):
+    '''
+    Function for the generation of a heatmap presenting the predicted versus
+    the true track parameters.
+    '''
+    
     plt.figure()
     param_names = {"radial coefficient":0, "pitch coefficient":1, "azimuthal coefficient":2, "theta":0, "sinphi":1, "cosphi":2, "q":3}
     all_pred, all_true = [], []
