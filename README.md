@@ -31,4 +31,4 @@ Example usage can be found in `script_train.sh` and `evaluation\script_test.sh`.
 
 ## Author
 All code, unless explicitly stated, is produced by Nadezhda Dobreva.
-The author is part of the wider Trackformers: Transformers for tracking project. This repository contains only the implementations contributed to Nadezhda Dobreva.
+The author is part of the wider TrackFormers: Transformers for tracking project. This repository contains only the implementations contributed to Nadezhda Dobreva.
