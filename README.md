@@ -18,9 +18,9 @@ The `evaluation\` directory contains functionality used at inference time: `test
 
 The `data_processing\` directory contains functionality related to the simulated data: `dataset.py` for loading REDVID data, and a data class for the hits and their associated particle IDs; `trackml_data.py` for loading the TrackML data and transforming the TrackML events into smaller ones for the creation of the subset datasets. The `domain_decomposition.py` functionality is not used in the reported experiments but is fully functional. 
 
-The `refiner/` folder contains the implementation of a refiner network (training, testing), which is not used in the reported experiments but is also fully functional.
+The `refiner\` folder contains the implementation of a refiner network (training, testing), which is not used in the reported experiments but is also fully functional.
 
-The trained models for which best scores are reported in the paper, are included in the `models/` folder.
+The trained models for which best scores are reported in the paper, are included in the `models\` folder.
 
 ## Using the Code Base
 To train a model, simply run the `training.py` file and provide it with the commandline arguments it expects: `max_nr_hits, nr_epochs, data_path, model_name, nr_enc_layers, embedding_size, hidden_dim, data_type, dropout, early_stop`. Some have a set default value that can be see in the `training.py.` file. Alernatively, you can run the `training_flash.py` file, which expects the same arguments, but also makes use of Flash Attention instead of the default Multi-Head Attention.
