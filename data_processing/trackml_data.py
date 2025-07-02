@@ -44,6 +44,7 @@ def take_inner_detector_trackml_data(event_id, file_name):
     # Write the event to a file
     final_data.to_csv(file_name, mode='a', index=False, header=False)
 
+# THIS FUNCTION IS DEPRECATED, PLEASE DO NOT USE
 def transform_trackml_data(event_id, additional_id, min_nr_particles, max_nr_particles):
     '''
     Parse the three TrackML files per event and write the data to file,
