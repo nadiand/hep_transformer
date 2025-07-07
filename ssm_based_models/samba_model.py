@@ -12,7 +12,6 @@ import torch.nn as nn
 from lightning_utilities.core.imports import RequirementCache
 from mambapy.mamba import Mamba, MambaConfig
 
-FlashAttention2Available = RequirementCache("flash-attn>=2.0.0.post1")
 
 class Model(nn.Module):
     def __init__(self, input_size, d_model, n_layers, layer_norm_eps, n_head, full_per_layer, local_window, output_size):
@@ -31,7 +30,7 @@ class Model(nn.Module):
 
 class Block(nn.Module):
     def __init__(self, d_model, n_layers, layer_norm_eps, layer_idx, full_per_layer, local_window, n_head):
-        # NOTE: leaving only the mamba swa mlp option ! not fully samba
+        # NOTE: not fully samba, just mamba + attn + mlp
         super().__init__()
         factory_kwargs = {"device": "cuda", "dtype": torch.float32}
 
@@ -39,7 +38,7 @@ class Block(nn.Module):
         self.norm_attn = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
         self.norm_mlp = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
         self.mb = Mamba(MambaConfig(d_model=d_model, n_layers=n_layers))
-        self.attn = CausalSelfAttention(n_head, d_model, batch_first=False, dropout=0.1)
+        self.attn = CausalSelfAttention(n_head, d_model, dropout=0.1)
         self.mlp = nn.Linear(d_model, d_model)
 
     def forward(
@@ -55,11 +54,11 @@ class Block(nn.Module):
 
 class CausalSelfAttention(nn.Module):
     '''
-    Taken and adapted from pytorch tutorial on SDPA:
+    Taken from pytorch tutorial on SDPA:
     https://pytorch.org/tutorials/intermediate/scaled_dot_product_attention_tutorial.html#beta-implementing-high-performance-transformers-with-scaled-dot-product-attention-sdpa
     '''
 
-    def __init__(self, num_heads: int, embed_dimension: int, bias: bool=False, is_causal: bool=False, batch_first: bool=True, dropout: float=0.0):
+    def __init__(self, num_heads: int, embed_dimension: int, bias: bool=False, is_causal: bool=False, dropout: float=0.0):
         super().__init__()
         assert embed_dimension % num_heads == 0
         # key, query, value projections for all heads, but in a batch
@@ -71,8 +70,9 @@ class CausalSelfAttention(nn.Module):
         self.embed_dimension = embed_dimension
         # Perform causal masking
         self.is_causal = is_causal
-        self.batch_first = batch_first
+        # Regularization
         self.dropout = dropout
+        self.resid_dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
@@ -99,5 +99,6 @@ class CausalSelfAttention(nn.Module):
             y = torch.nn.functional.scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=dropout, is_causal=is_causal)
 
         y = y.transpose(1, 2).view(batch_size, -1, self.num_heads * head_dim)
+        y = self.resid_dropout(self.c_proj(y))
 
         return y
