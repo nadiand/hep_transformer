@@ -5,7 +5,7 @@ import argparse
 from hdbscan import HDBSCAN
 
 from samba_model import Model
-from load_data import HitsDataset, get_dataloaders, load_trackml_data, PAD_TOKEN
+from load_sim_data import HitsDataset, get_dataloaders, load_trackml_data, PAD_TOKEN
 from evaluation.scoring import calc_score, calc_score_trackml
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
