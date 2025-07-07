@@ -5,9 +5,8 @@ import argparse
 from hdbscan import HDBSCAN
 
 from samba_model import Model
-from data_processing.dataset import HitsDataset, PAD_TOKEN, get_dataloaders, load_linear_2d_data, load_linear_3d_data, load_curved_3d_data
+from load_data import HitsDataset, get_dataloaders, load_trackml_data, PAD_TOKEN
 from evaluation.scoring import calc_score, calc_score_trackml
-from data_processing.trackml_data import load_trackml_data
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -40,19 +39,14 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
     optim.zero_grad()
 
     for i, data in enumerate(train_loader):
-#        print(f"datapoint {i}", flush=True)
-#        if i == 30794:
-#            continue
         _, hits, track_params, _ = data
-
         # Make prediction
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
+        hits = torch.unsqueeze(hits[~padding_mask], 0)
+        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
         with torch.cuda.amp.autocast():
             pred = model(hits, padding_mask)
             loss = loss_fn(pred, track_params)
-
-        pred = torch.unsqueeze(pred[~padding_mask], 0)
-        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
 
         # Calculate loss and use it to update weights
         intermid_loss += loss
@@ -83,6 +77,8 @@ def evaluate(model, validation_loader, loss_fn):
 
             # Make prediction
             padding_mask = (hits == PAD_TOKEN).all(dim=2)
+            hits = torch.unsqueeze(hits[~padding_mask], 0)
+            track_params = torch.unsqueeze(track_params[~padding_mask], 0)
             with torch.cuda.amp.autocast():
                 pred = model(hits, padding_mask)
                 loss = loss_fn(pred, track_params)
@@ -94,19 +90,10 @@ def evaluate(model, validation_loader, loss_fn):
                 losses += mean_loss.item()
                 intermid_loss = 0.
 
-            pred = torch.unsqueeze(pred[~padding_mask], 0)
-            track_params = torch.unsqueeze(track_params[~padding_mask], 0)
-
-            intermid_loss += loss
-            if (i+1) % 16 == 0:
-                mean_loss = intermid_loss.mean()
-                losses += mean_loss.item()
-                intermid_loss = 0.
-
     return losses / len(validation_loader)
 
 
-def predict(model, test_loader, min_cl_size, min_samples, data_type):
+def predict(model, test_loader, min_cl_size, min_samples):
     '''
     Evaluates the network on the test data. Returns the predictions and scores.
     '''
@@ -120,24 +107,15 @@ def predict(model, test_loader, min_cl_size, min_samples, data_type):
 
         # Make prediction
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
-        with torch.cuda.amp.autocast():
-            pred = model(hits, padding_mask)
-
         hits = torch.unsqueeze(hits[~padding_mask], 0)
-        pred = torch.unsqueeze(pred[~padding_mask], 0)
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
-        # For evaluating the clustering performance on the (noisy) ground truth
-        # noise = np.random.laplace(0, 0.05, size=(track_params.shape[0], track_params.shape[1], track_params.shape[2]))
-        # track_params += noise
-        # cluster_labels = clustering(track_params, min_cl_size, min_samples)
+        with torch.cuda.amp.autocast():
+            pred = model(hits, padding_mask)
 
         cluster_labels = clustering(pred, min_cl_size, min_samples)
-        if data_type == 'trackml':
-            event_score, scores = calc_score_trackml(cluster_labels[0], track_labels[0])
-        else:
-            event_score, scores = calc_score(cluster_labels[0], track_labels[0])
+        event_score, scores = calc_score_trackml(cluster_labels[0], track_labels[0])
         score += event_score
         perfects += scores[0]
         doubles += scores[1]
@@ -153,10 +131,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--nr_epochs', type=int, default=100)
     parser.add_argument('--early_stop', type=int, default=50)
-    parser.add_argument('--max_nr_hits', type=int)
     parser.add_argument('--data_path', type=str)
     parser.add_argument('--model_name', type=str)
-    parser.add_argument('--data_type', type=str, choices=['2d', 'linear', 'curved', 'trackml'])
 
     parser.add_argument('--nr_enc_layers', type=int, default=6)
     parser.add_argument('--dropout', type=float, default=0.1)
@@ -167,23 +143,8 @@ if __name__ == "__main__":
 
     torch.manual_seed(37)  # for reproducibility
 
-    data_func = None
-    in_size = 3
-    out_size = 3
-    if args.data_type == '2d':
-        data_func = load_linear_2d_data
-        in_size = 2
-        out_size = 1
-    elif args.data_type == 'linear':
-        data_func = load_linear_3d_data
-    elif args.data_type == 'curved':
-        data_func = load_curved_3d_data
-    elif args.data_type == 'trackml':
-        data_func = load_trackml_data
-        out_size = 4
-
     # Load and split dataset into training, validation and test sets, and get dataloaders
-    hits_data, track_params_data, track_classes_data = data_func(data=args.data_path, max_num_hits=args.max_nr_hits)
+    hits_data, track_params_data, track_classes_data = load_trackml_data(data=args.data_path)
     dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
     train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,
@@ -197,8 +158,8 @@ if __name__ == "__main__":
     transformer = Model(n_layers=args.nr_enc_layers,
                                         d_model=args.embedding_size,
                                         n_head=args.nr_heads,
-                                        input_size=in_size,
-                                        output_size=out_size,
+                                        input_size=3,
+                                        output_size=4,
                                         layer_norm_eps=0.1,
                                         local_window=500,
                                         full_per_layer=2)
