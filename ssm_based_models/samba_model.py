@@ -11,6 +11,14 @@ import torch
 import torch.nn as nn
 from lightning_utilities.core.imports import RequirementCache
 from mambapy.mamba import Mamba, MambaConfig
+from torch.nn.attention.flex_attention import flex_attention
+
+
+def compile_flex_attention():
+    try:
+        return torch.compile(flex_attention)
+    except:
+        return torch.compile(flex_attention, dynamic=False, mode="max-autotune")
 
 
 class Model(nn.Module):
@@ -95,8 +103,8 @@ class CausalSelfAttention(nn.Module):
             is_causal = False
 
         # The logic ensuring flash attention is utilized
-        with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):
-            y = torch.nn.functional.scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=dropout, is_causal=is_causal)
+        compiled_flex_attention = compile_flex_attention()
+        y = compiled_flex_attention(query, key, value, block_mask=None) #block_mask)
 
         y = y.transpose(1, 2).view(batch_size, -1, self.num_heads * head_dim)
         y = self.resid_dropout(self.c_proj(y))
