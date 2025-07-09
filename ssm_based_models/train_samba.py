@@ -44,7 +44,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         hits = torch.unsqueeze(hits[~padding_mask], 0)
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
-        with torch.cuda.amp.autocast():
+        with torch.amp.autocast('cuda'):
             pred = model(hits, padding_mask)
             loss = loss_fn(pred, track_params)
 
@@ -79,7 +79,7 @@ def evaluate(model, validation_loader, loss_fn):
             padding_mask = (hits == PAD_TOKEN).all(dim=2)
             hits = torch.unsqueeze(hits[~padding_mask], 0)
             track_params = torch.unsqueeze(track_params[~padding_mask], 0)
-            with torch.cuda.amp.autocast():
+            with torch.amp.autocast('cuda'):
                 pred = model(hits, padding_mask)
                 loss = loss_fn(pred, track_params)
 
@@ -111,7 +111,7 @@ def predict(model, test_loader, min_cl_size, min_samples):
         track_params = torch.unsqueeze(track_params[~padding_mask], 0)
         track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
 
-        with torch.cuda.amp.autocast():
+        with torch.amp.autocast('cuda'):
             pred = model(hits, padding_mask)
 
         cluster_labels = clustering(pred, min_cl_size, min_samples)
@@ -169,7 +169,7 @@ if __name__ == "__main__":
 
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(transformer.parameters(), lr=1e-3)
-    scaler = torch.cuda.amp.GradScaler()
+    scaler = torch.amp.GradScaler('cuda')
 
     # Training
     train_losses, val_losses = [], []
