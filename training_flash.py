@@ -40,7 +40,6 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
     torch.set_grad_enabled(True)
     model.train()
     losses = 0.
-    intermid_loss = 0.
     optim.zero_grad()
 
     for i, data in enumerate(train_loader):
@@ -53,18 +52,33 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
         # Make prediction
         with torch.amp.autocast('cuda'):
             pred = model(hits, padding_mask, f'train_{i}', flex_padding_mask)
-            loss = loss_fn(pred, track_params)
-        
-        # Update loss and scaler after a "batch"
-        intermid_loss += loss
-        if (i+1) % 16 == 0:
-            mean_loss = intermid_loss.mean()
-            scaler.scale(mean_loss).backward()
-            scaler.step(optim)
-            scaler.update()
-            losses += mean_loss.item()
-            intermid_loss = 0.
-            optim.zero_grad()
+            
+            # Unpad for loss calculation
+            batched_pred = []
+            batched_target = []
+            B = len(seqlens)
+
+            for b_idx in range(B):
+                if B == 1:
+                    seq_len = seqlens.item()
+                else:
+                    seq_len = seqlens[b_idx].item()
+                # unpad just [0..seq_len) for pred
+                this_pred = pred[b_idx, :seq_len, :]
+                this_target = track_params[b_idx, :seq_len, :]
+                batched_pred.append(this_pred)
+                batched_target.append(this_target)
+
+            final_pred = torch.cat(batched_pred, dim=0)
+            targets = torch.cat(batched_target, dim=0)
+
+            loss = loss_fn(final_pred, targets)
+
+        scaler.scale(loss).backward()
+        scaler.step(optim)
+        scaler.update()
+        losses += loss.item()
+        optim.zero_grad()
 
     return losses / len(train_loader)
 
@@ -77,7 +91,6 @@ def evaluate(model, validation_loader, loss_fn):
     # Get the network in evaluation mode
     model.eval()
     losses = 0.
-    intermid_loss = 0.
     with torch.no_grad():
         for i, data in enumerate(validation_loader):
             _, hits, seqlens, track_params, _ = data
@@ -88,14 +101,29 @@ def evaluate(model, validation_loader, loss_fn):
             
             with torch.amp.autocast('cuda'):
                 pred = model(hits, padding_mask, f'valid_{i}', flex_padding_mask)
-                loss = loss_fn(pred, track_params)
+                
+                # Unpad for loss calculation
+                batched_pred = []
+                batched_target = []
+                B = len(seqlens)
 
-            # Update loss after a "batch"
-            intermid_loss += loss
-            if (i+1) % 16 == 0:
-                mean_loss = intermid_loss.mean()
-                losses += mean_loss.item()
-                intermid_loss = 0.
+                for b_idx in range(B):
+                    if B == 1:
+                        seq_len = seqlens.item()
+                    else:
+                        seq_len = seqlens[b_idx].item()
+                    # unpad just [0..seq_len) for pred
+                    this_pred = pred[b_idx, :seq_len, :]
+                    this_target = track_params[b_idx, :seq_len, :]
+                    batched_pred.append(this_pred)
+                    batched_target.append(this_target)
+
+                final_pred = torch.cat(batched_pred, dim=0)
+                targets = torch.cat(batched_target, dim=0)
+
+                loss = loss_fn(final_pred, targets)
+
+            losses += loss.item()
             
     return losses / len(validation_loader)
 
@@ -119,6 +147,32 @@ def predict(model, test_loader, min_cl_size, min_samples):
 
         with torch.amp.autocast('cuda'):
             pred = model(hits, padding_mask, f'test_{i}', flex_padding_mask)
+
+            # Unpad for loss calculation
+            batched_pred = []
+            batched_target = []
+            batched_classes = []
+            B = len(seqlens)
+
+            for b_idx in range(B):
+                if B == 1:
+                    seq_len = seqlens.item()
+                else:
+                    seq_len = seqlens[b_idx].item()
+                # unpad just [0..seq_len) for pred
+                this_pred = pred[b_idx, :seq_len, :]
+                this_target = track_params[b_idx, :seq_len, :]
+                this_labels = track_labels[b_idx, :seq_len, :]
+                batched_pred.append(this_pred)
+                batched_target.append(this_target)
+                batched_classes.append(this_labels)
+
+            final_pred = torch.cat(batched_pred, dim=0)
+            targets = torch.cat(batched_target, dim=0)
+            classes = torch.cat(batched_classes, dim=0)
+            final_pred = torch.unsqueeze(final_pred, 0)
+            targets = torch.unsqueeze(targets, 0)
+            classes = torch.unsqueeze(classes, 0)
 
         # Cluster and evaluate
         cluster_labels = clustering(pred, min_cl_size, min_samples)
