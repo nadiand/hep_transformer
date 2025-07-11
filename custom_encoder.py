@@ -95,7 +95,7 @@ def _get_activation_fn(activation: str) -> Callable[[Tensor], Tensor]:
 
     raise RuntimeError("activation should be relu/gelu, not {}".format(activation))
 
-    
+
 class CausalSelfAttention(Module):
     '''
     Taken and adapted from pytorch tutorial on SDPA: 
@@ -131,14 +131,7 @@ class CausalSelfAttention(Module):
         key = key.view(batch_size, -1, self.num_heads, head_dim).transpose(1, 2)
         value = value.view(batch_size, -1, self.num_heads, head_dim).transpose(1, 2)
 
-        if self.training:
-            dropout = self.dropout
-            is_causal = self.is_causal
-        else:
-            dropout = 0.0
-            is_causal = False
-
-        # Using flex attention
+        # Using flex attention (non causal currently!)
         compiled_flex_attention = compile_flex_attention()
         y = compiled_flex_attention(query, key, value, block_mask=flex_mask)
 
@@ -146,3 +139,11 @@ class CausalSelfAttention(Module):
         y = self.resid_dropout(self.c_proj(y))
 
         return y
+    
+
+def generate_flex_padding_mask(seqlens):
+    def padding_mask(b, h, q_idx, kv_idx):
+        length = seqlens[b]
+        padding = (kv_idx < length)
+        return padding
+    return padding_mask
