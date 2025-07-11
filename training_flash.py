@@ -52,7 +52,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
         # Make prediction
         with torch.amp.autocast('cuda'):
             pred = model(hits, padding_mask, f'train_{i}', flex_padding_mask)
-            
+
             # Unpad for loss calculation
             batched_pred = []
             batched_target = []
@@ -98,10 +98,10 @@ def evaluate(model, validation_loader, loss_fn):
             # Make masks
             padding_mask = (hits == PAD_TOKEN).all(dim=2)
             flex_padding_mask = generate_flex_padding_mask(seqlens)
-            
+
             with torch.amp.autocast('cuda'):
                 pred = model(hits, padding_mask, f'valid_{i}', flex_padding_mask)
-                
+
                 # Unpad for loss calculation
                 batched_pred = []
                 batched_target = []
@@ -124,7 +124,7 @@ def evaluate(model, validation_loader, loss_fn):
                 loss = loss_fn(final_pred, targets)
 
             losses += loss.item()
-            
+
     return losses / len(validation_loader)
 
 
@@ -175,8 +175,8 @@ def predict(model, test_loader, min_cl_size, min_samples):
             classes = torch.unsqueeze(classes, 0)
 
         # Cluster and evaluate
-        cluster_labels = clustering(pred, min_cl_size, min_samples)
-        event_score, scores = calc_score_trackml(cluster_labels[0], track_labels[0])
+        cluster_labels = clustering(final_pred, min_cl_size, min_samples)
+        event_score, scores = calc_score_trackml(cluster_labels[0], classes[0])
         score += event_score
         perfects += scores[0]
         doubles += scores[1]
