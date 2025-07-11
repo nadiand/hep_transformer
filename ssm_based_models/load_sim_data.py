@@ -15,17 +15,19 @@ class HitsDataset(Dataset):
     parameters, the particles they belong to.
     '''
 
-    def __init__(self, hits_data, track_params_data=None, class_data=None):
+    def __init__(self, hits_data, track_params_data=None, class_data=None, hits_seq_len=None):
         self.hits_data = hits_data.to(DEVICE)
         self.track_params_data = track_params_data.to(DEVICE)
         self.class_data = class_data.to(DEVICE)
+        self.hits_seq_len = hits_seq_len.to(DEVICE)
         self.total_events = self.__len__()
 
     def __len__(self):
         return self.hits_data.shape[0]
 
     def __getitem__(self, idx):
-        return idx, self.hits_data[idx], self.track_params_data[idx], self.class_data[idx]
+        return idx, self.hits_data[idx], self.hits_seq_len[idx], self.track_params_data[idx], self.class_data[idx]
+
 
 def get_dataloaders(dataset, train_frac, valid_frac, test_frac, batch_size):
     train_set, valid_set, test_set = random_split(dataset, [train_frac, valid_frac, test_frac], generator=torch.Generator().manual_seed(37))
