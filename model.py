@@ -5,6 +5,9 @@ import numpy as np
 from custom_encoder import TransformerEncoderLayer as custom_encoder
 from custom_encoder import CustomTransformerEncoder
 
+from torch.nn.attention.flex_attention import create_block_mask
+fast_create_block_mask = torch.compile(create_block_mask)
+
 
 class AngleDifferenceLoss(nn.Module):
     '''
@@ -33,12 +36,34 @@ class TransformerRegressor(nn.Module):
             encoder_layers = nn.TransformerEncoderLayer(d_model, n_head, dim_feedforward, dropout, batch_first=True)
         self.encoder = CustomTransformerEncoder(encoder_layers, num_encoder_layers, enable_nested_tensor=False)
         self.decoder = nn.Linear(d_model, output_size)
+        self.mask_cache_cpu = {}
 
-    def forward(self, input, padding_mask):
+    def forward(self, input, padding_mask, batch_name, flex_padding_mask):
         x = self.input_layer(input)
-        memory = self.encoder(src=x, src_key_padding_mask=padding_mask)
+
+        # Creating mask for flex attention
+        B, S = input.size(0), input.size(1)
+        key = (batch_name, B, S)
+        mask_gpu = self.build_or_reuse_gpu_mask(key, flex_padding_mask, B, S)
+
+        memory = self.encoder(src=x, src_key_padding_mask=padding_mask, flex_mask=mask_gpu)
         out = self.decoder(memory)
         return out
+
+    def build_or_reuse_gpu_mask(self, key, score_mod, B, S):
+        # if mask is already on CPU
+        if key in self.mask_cache_cpu:
+            # load from CPU to GPU
+            return self.mask_cache_cpu[key].to(device='cuda')
+
+        # otherwise, build on GPU once
+        mask_gpu = fast_create_block_mask(score_mod, B, None, S, S, device='cuda')
+
+        # then store a CPU copy for future re-use
+        mask_cpu = mask_gpu.to(device='cpu')
+        self.mask_cache_cpu[key] = mask_cpu
+
+        return mask_gpu
 
 
 def save_model(model, optim, type, val_losses, train_losses, epoch, count, file_name):
