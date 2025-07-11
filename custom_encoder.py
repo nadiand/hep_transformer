@@ -3,6 +3,15 @@ import torch
 from torch.nn import Module, Linear, LayerNorm, Dropout
 from torch import Tensor
 import torch.nn.functional as F
+import torch.nn.functional as F
+from torch.nn.attention.flex_attention import flex_attention
+
+
+def compile_flex_attention():
+    try:
+        return torch.compile(flex_attention)
+    except:
+        return torch.compile(flex_attention, dynamic=False, mode="max-autotune")
 
 
 class TransformerEncoderLayer(Module):
@@ -55,45 +64,30 @@ class TransformerEncoderLayer(Module):
             src: Tensor,
             src_mask: Optional[Tensor] = None,
             src_key_padding_mask: Optional[Tensor] = None,
+            flex_mask: Optional[Tensor] = None,
             is_causal: bool = False) -> Tensor:
-
-        src_key_padding_mask = F._canonical_mask(
-            mask=src_key_padding_mask,
-            mask_name="src_key_padding_mask",
-            other_type=F._none_or_dtype(src_mask),
-            other_name="src_mask",
-            target_type=src.dtype
-        )
-
-        src_mask = F._canonical_mask(
-            mask=src_mask,
-            mask_name="src_mask",
-            other_type=None,
-            other_name="",
-            target_type=src.dtype,
-            check_other=False,
-        )
 
         x = src
         if self.norm_first:
-            x = x + self._sa_block(self.norm1(x), src_mask, src_key_padding_mask, is_causal=is_causal)
+            x = x + self._sa_block(self.norm1(x), flex_mask, is_causal=is_causal)
             x = x + self._ff_block(self.norm2(x))
         else:
-            x = self.norm1(x + self._sa_block(x, src_mask, src_key_padding_mask, is_causal=is_causal))
+            x = self.norm1(x + self._sa_block(x, flex_mask, is_causal=is_causal))
             x = self.norm2(x + self._ff_block(x))
 
         return x
 
     # self-attention block
-    def _sa_block(self, x: Tensor,
+    def _sa_block(self, x: Tensor, flex_mask: Optional[Tensor],
                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
-        x = self.self_attn(x)
+        x = self.self_attn(x, flex_mask)
         return self.dropout1(x)
 
     # feed forward block
     def _ff_block(self, x: Tensor) -> Tensor:
         x = self.linear2(self.dropout(self.activation(self.linear1(x))))
         return self.dropout2(x)
+
 
 def _get_activation_fn(activation: str) -> Callable[[Tensor], Tensor]:
     if activation == "relu":
@@ -125,7 +119,7 @@ class CausalSelfAttention(Module):
         self.batch_first = batch_first
         self.dropout = dropout
 
-    def forward(self, x):
+    def forward(self, x, flex_mask):
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
         query_projected = self.c_attn(x)
 
@@ -145,10 +139,10 @@ class CausalSelfAttention(Module):
             dropout = 0.0
             is_causal = False
 
-        # The logic ensuring flash attention is utilized
-        with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=False):
-            y = F.scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=dropout, is_causal=is_causal)
-    
+        # Using flex attention
+        compiled_flex_attention = compile_flex_attention()
+        y = compiled_flex_attention(query, key, value, block_mask=flex_mask)
+
         y = y.transpose(1, 2).view(batch_size, -1, self.num_heads * head_dim)
 
         return y
