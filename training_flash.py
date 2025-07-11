@@ -44,7 +44,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
     optim.zero_grad()
 
     for i, data in enumerate(train_loader):
-        _, hits, track_params, _ = data
+        _, hits, seqlens, track_params, _ = data
 
         # Make masks
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
@@ -52,7 +52,7 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
 
         # Make prediction
         with torch.amp.autocast('cuda'):
-            pred = model(hits, padding_mask)
+            pred = model(hits, padding_mask, f'train_{i}', flex_padding_mask)
             loss = loss_fn(pred, track_params)
         
         # Update loss and scaler after a "batch"
@@ -80,14 +80,14 @@ def evaluate(model, validation_loader, loss_fn):
     intermid_loss = 0.
     with torch.no_grad():
         for i, data in enumerate(validation_loader):
-            _, hits, track_params, _ = data
+            _, hits, seqlens, track_params, _ = data
 
             # Make masks
             padding_mask = (hits == PAD_TOKEN).all(dim=2)
             flex_padding_mask = generate_flex_padding_mask(seqlens)
             
             with torch.amp.autocast('cuda'):
-                pred = model(hits, padding_mask)
+                pred = model(hits, padding_mask, f'valid_{i}', flex_padding_mask)
                 loss = loss_fn(pred, track_params)
 
             # Update loss after a "batch"
@@ -110,15 +110,15 @@ def predict(model, test_loader, min_cl_size, min_samples):
     predictions = {}
     score, perfects, doubles, lhcs = 0., 0., 0., 0.
 
-    for data in test_loader:
-        event_id, hits, track_params, track_labels = data
+    for i, data in enumerate(test_loader):
+        event_id, hits, seqlens, track_params, track_labels = data
 
         # Make masks
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
         flex_padding_mask = generate_flex_padding_mask(seqlens)
 
         with torch.amp.autocast('cuda'):
-            pred = model(hits, padding_mask)
+            pred = model(hits, padding_mask, f'test_{i}', flex_padding_mask)
 
         # Cluster and evaluate
         cluster_labels = clustering(pred, min_cl_size, min_samples)
