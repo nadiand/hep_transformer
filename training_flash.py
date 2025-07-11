@@ -8,6 +8,7 @@ from model import TransformerRegressor, save_model
 from data_processing.dataset import HitsDataset, get_dataloaders, PAD_TOKEN
 from data_processing.trackml_data import load_trackml_data
 from evaluation.scoring import calc_score_trackml
+from custom_encoder import generate_flex_padding_mask
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -45,9 +46,9 @@ def train_epoch(model, optim, train_loader, loss_fn, scaler):
     for i, data in enumerate(train_loader):
         _, hits, track_params, _ = data
 
+        # Make masks
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
-        hits = torch.unsqueeze(hits[~padding_mask], 0)
-        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
+        flex_padding_mask = generate_flex_padding_mask(seqlens)
 
         # Make prediction
         with torch.amp.autocast('cuda'):
@@ -81,10 +82,9 @@ def evaluate(model, validation_loader, loss_fn):
         for i, data in enumerate(validation_loader):
             _, hits, track_params, _ = data
 
-            # Make prediction
+            # Make masks
             padding_mask = (hits == PAD_TOKEN).all(dim=2)
-            hits = torch.unsqueeze(hits[~padding_mask], 0)
-            track_params = torch.unsqueeze(track_params[~padding_mask], 0)
+            flex_padding_mask = generate_flex_padding_mask(seqlens)
             
             with torch.amp.autocast('cuda'):
                 pred = model(hits, padding_mask)
@@ -113,12 +113,9 @@ def predict(model, test_loader, min_cl_size, min_samples):
     for data in test_loader:
         event_id, hits, track_params, track_labels = data
 
-        # Make prediction
+        # Make masks
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
-
-        hits = torch.unsqueeze(hits[~padding_mask], 0)
-        track_params = torch.unsqueeze(track_params[~padding_mask], 0)
-        track_labels = torch.unsqueeze(track_labels[~padding_mask], 0)
+        flex_padding_mask = generate_flex_padding_mask(seqlens)
 
         with torch.amp.autocast('cuda'):
             pred = model(hits, padding_mask)
