@@ -3,7 +3,6 @@ import torch
 from torch.nn import Module, Linear, LayerNorm, Dropout
 from torch import Tensor
 import torch.nn.functional as F
-import torch.nn.functional as F
 from torch.nn.attention.flex_attention import flex_attention
 
 
@@ -74,12 +73,11 @@ class TransformerEncoderLayer(Module):
         else:
             x = self.norm1(x + self._sa_block(x, flex_mask, is_causal=is_causal))
             x = self.norm2(x + self._ff_block(x))
-
         return x
 
     # self-attention block
     def _sa_block(self, x: Tensor, flex_mask: Optional[Tensor],
-                  attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor], is_causal: bool = False) -> Tensor:
+                  attn_mask: Optional[Tensor] = None, key_padding_mask: Optional[Tensor] = None, is_causal: bool = False) -> Tensor:
         x = self.self_attn(x, flex_mask)
         return self.dropout1(x)
 
@@ -118,6 +116,7 @@ class CausalSelfAttention(Module):
         self.is_causal = is_causal
         self.batch_first = batch_first
         self.dropout = dropout
+        self.resid_dropout = Dropout(dropout)
 
     def forward(self, x, flex_mask):
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
@@ -144,5 +143,6 @@ class CausalSelfAttention(Module):
         y = compiled_flex_attention(query, key, value, block_mask=flex_mask)
 
         y = y.transpose(1, 2).view(batch_size, -1, self.num_heads * head_dim)
+        y = self.resid_dropout(self.c_proj(y))
 
         return y
