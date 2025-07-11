@@ -66,7 +66,7 @@ def load_trackml_data(data, normalize=True):
         # Returns the hit coordinates as a padded sequence; this is the input to the transformer
         sequence_length = len(event_rows)
         event_hit_data = event_rows[["x", "y", "z"]].to_numpy(dtype=np.float32)
-        return np.pad(event_hit_data, [(0, max_num_hits-sequence_length), (0, 0)], "constant", constant_values=PAD_TOKEN)
+        return np.pad(event_hit_data, [(0, max_num_hits-sequence_length), (0, 0)], "constant", constant_values=PAD_TOKEN), sequence_length
 
     def extract_track_params_data(event_rows):
         # Returns the track parameters as a padded sequence; this is what the transformer must regress
@@ -81,13 +81,15 @@ def load_trackml_data(data, normalize=True):
         return np.pad(event_hit_classes_data, [(0, max_num_hits-sequence_length), (0, 0)], "constant", constant_values=PAD_TOKEN)
 
     # Get the hits, track params and their weights as sequences padded up to a max length
-    grouped_hits_data = data_grouped_by_event.apply(extract_hits_data)
+    results = data_grouped_by_event.apply(extract_hits_data)
+    grouped_hits_data, sequence_lengths = zip(*results)
     grouped_track_params_data = data_grouped_by_event.apply(extract_track_params_data)
     grouped_hit_classes_data = data_grouped_by_event.apply(extract_hit_classes_data)
 
     # Stack them together into one tensor
-    hits_data = torch.tensor(np.stack(grouped_hits_data.values))
+    hits_data = torch.tensor(np.stack(grouped_hits_data))
+    hits_data_seq_lengths = torch.tensor(sequence_lengths, dtype=torch.long)
     track_params_data = torch.tensor(np.stack(grouped_track_params_data.values))
     hit_classes_data = torch.tensor(np.stack(grouped_hit_classes_data.values))
 
-    return hits_data, track_params_data, hit_classes_data
+    return hits_data, hits_data_seq_lengths, track_params_data, hit_classes_data
