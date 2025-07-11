@@ -5,8 +5,7 @@ from hdbscan import HDBSCAN
 import argparse
 
 from model import TransformerRegressor, save_model
-from data_processing.dataset import HitsDataset, get_dataloaders, PAD_TOKEN
-from data_processing.trackml_data import load_trackml_data
+from ssm_based_models.load_sim_data import HitsDataset, get_dataloaders, PAD_TOKEN, load_trackml_data
 from evaluation.scoring import calc_score_trackml
 from custom_encoder import generate_flex_padding_mask
 
@@ -206,8 +205,8 @@ if __name__ == "__main__":
     torch.manual_seed(37)  # for reproducibility
 
     # Loading data
-    hits_data, track_params_data, track_classes_data = load_trackml_data(data=args.data_path, max_num_hits=args.max_nr_hits, normalize=True)
-    dataset = HitsDataset(hits_data, track_params_data, track_classes_data)
+    hits_data, seqlen_data, track_params_data, track_classes_data = load_trackml_data(data=args.data_path)
+    dataset = HitsDataset(hits_data, track_params_data, track_classes_data, seqlen_data)
     train_loader, valid_loader, test_loader = get_dataloaders(dataset,
                                                               train_frac=0.7,
                                                               valid_frac=0.15,
