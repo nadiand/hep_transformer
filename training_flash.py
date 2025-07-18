@@ -147,7 +147,8 @@ def predict(model, test_loader, min_cl_size, min_samples):
         with torch.amp.autocast('cuda'):
             pred = model(hits, padding_mask, f'test_{i}', flex_padding_mask)
 
-            # Unpad for loss calculation
+            # Unpad for score calculation and plotting
+            batched_hits = []
             batched_pred = []
             batched_target = []
             batched_classes = []
@@ -159,16 +160,20 @@ def predict(model, test_loader, min_cl_size, min_samples):
                 else:
                     seq_len = seqlens[b_idx].item()
                 # unpad just [0..seq_len) for pred
+                this_hits = hits[b_idx, :seq_len, :]
                 this_pred = pred[b_idx, :seq_len, :]
                 this_target = track_params[b_idx, :seq_len, :]
                 this_labels = track_labels[b_idx, :seq_len, :]
+                batched_hits.append(this_hits)
                 batched_pred.append(this_pred)
                 batched_target.append(this_target)
                 batched_classes.append(this_labels)
 
+            hits = torch.cat(batched_hits, dim=0)
             final_pred = torch.cat(batched_pred, dim=0)
             targets = torch.cat(batched_target, dim=0)
             classes = torch.cat(batched_classes, dim=0)
+            hits = torch.unsqueeze(hits, 0)
             final_pred = torch.unsqueeze(final_pred, 0)
             targets = torch.unsqueeze(targets, 0)
             classes = torch.unsqueeze(classes, 0)
@@ -181,16 +186,15 @@ def predict(model, test_loader, min_cl_size, min_samples):
         doubles += scores[1]
         lhcs += scores[2]
 
-        for _, e_id in enumerate(event_id):
-            predictions[e_id.item()] = (hits, pred, track_params, cluster_labels, track_labels, event_score)
+        predictions[event_id.item()] =  (hits, final_pred, targets, cluster_labels, classes, event_score)
 
     return predictions, score/len(test_loader), perfects/len(test_loader), doubles/len(test_loader), lhcs/len(test_loader)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--nr_epochs', type=int, default=100)
-    parser.add_argument('--early_stop', type=int, default=50)
+    parser.add_argument('--nr_epochs', type=int, default=50)
+    parser.add_argument('--early_stop', type=int, default=10)
     parser.add_argument('--max_nr_hits', type=int)
     parser.add_argument('--data_path', type=str)
     parser.add_argument('--model_name', type=str)
@@ -211,7 +215,7 @@ if __name__ == "__main__":
                                                               train_frac=0.7,
                                                               valid_frac=0.15,
                                                               test_frac=0.15,
-                                                              batch_size=1)
+                                                              batch_size=16)
     print("Data loaded")
 
     # Transformer model
@@ -219,7 +223,7 @@ if __name__ == "__main__":
                                         d_model=args.embedding_size,
                                         n_head=args.nr_heads,
                                         input_size=3,
-                                        output_size=3,
+                                        output_size=4,
                                         dim_feedforward=args.hidden_dim,
                                         dropout=args.dropout,
                                         use_flashattn=True)
