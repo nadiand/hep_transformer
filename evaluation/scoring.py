@@ -68,7 +68,7 @@ def _analyze_tracks(truth, submission):
             cur_weight = hit.weight
             maj_particle_id = -1
             maj_nhits = 0
-            maj_weights = 0
+            maj_weight= 0
             continue
 
         # hit is part of the current reconstructed track
