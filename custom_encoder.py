@@ -144,9 +144,22 @@ class CausalSelfAttention(Module):
 def generate_flex_padding_mask(seqlens):
     def padding_mask(b, h, q_idx, kv_idx):
         length = seqlens[b]
+        if q_idx >= length:
+            return False
         padding = (kv_idx < length)
         return padding
     return padding_mask
+
+
+def generate_flex_window_padding_mask(seqlens, window_size):
+    def sliding_window_padded(b, h, q_idx, kv_idx):
+        length = seqlens[b]
+        if q_idx >= length:
+            return False
+        padding = kv_idx < length
+        window_mask = torch.abs(q_idx - kv_idx) <= window_size
+        return padding & window_mask
+    return sliding_window_padded
 
 
 class CustomTransformerEncoder(TransformerEncoder):
