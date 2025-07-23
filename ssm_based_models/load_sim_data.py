@@ -39,7 +39,7 @@ def get_dataloaders(dataset, train_frac, valid_frac, test_frac, batch_size):
     return train_loader, valid_loader, test_loader
 
 
-def load_trackml_data(data, normalize=True):
+def load_trackml_data(data, normalize=True, sort=False):
     '''
     Function for reading .csv file with TrackML data and creating tensors
     containing the hits and ground truth information from it.
@@ -62,22 +62,47 @@ def load_trackml_data(data, normalize=True):
     # Round up to the next multiple of 128 for flex attention
     max_num_hits = ((max_num_hits + 127) // 128) * 128
 
+    def sort_on_distance(event_coords):
+        distances = []
+        for p in event_coords:
+            distances.append((p[0]**2 + p[1]**2 + p[2]**2)**0.5)
+
+        order = np.argsort(distances)
+        return order
+
     def extract_hits_data(event_rows):
         # Returns the hit coordinates as a padded sequence; this is the input to the transformer
         sequence_length = len(event_rows)
         event_hit_data = event_rows[["x", "y", "z"]].to_numpy(dtype=np.float32)
+
+        if sort:
+            order = sort_on_distance(event_hit_data)
+            event_hit_data = event_hit_data[order]
+
         return np.pad(event_hit_data, [(0, max_num_hits-sequence_length), (0, 0)], "constant", constant_values=PAD_TOKEN), sequence_length
 
     def extract_track_params_data(event_rows):
         # Returns the track parameters as a padded sequence; this is what the transformer must regress
         sequence_length = len(event_rows)
         event_track_params_data = event_rows[["cos_phi","sin_phi","cos_theta","q"]].to_numpy(dtype=np.float32)
+
+        if sort:
+            event_hit_data = event_rows[["x", "y", "z"]].to_numpy(dtype=np.float32)
+            order = sort_on_distance(event_hit_data)
+            event_track_params_data = event_track_params_data[order]
+
         return np.pad(event_track_params_data, [(0, max_num_hits-sequence_length), (0, 0)], "constant", constant_values=PAD_TOKEN)
 
     def extract_hit_classes_data(event_rows):
         # Returns the particle information as a padded sequence; this is used for weighting in the calculation of trackML score
         sequence_length = len(event_rows)
         event_hit_classes_data = event_rows[["particle_id","weight"]].to_numpy(dtype=np.float32)
+
+        if sort:
+            event_hit_data = event_rows[["x", "y", "z"]].to_numpy(dtype=np.float32)
+            order = sort_on_distance(event_hit_data)
+            event_hit_classes_data = event_hit_classes_data[order]
+
         return np.pad(event_hit_classes_data, [(0, max_num_hits-sequence_length), (0, 0)], "constant", constant_values=PAD_TOKEN)
 
     # Get the hits, track params and their weights as sequences padded up to a max length
