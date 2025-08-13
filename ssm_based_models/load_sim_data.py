@@ -39,7 +39,7 @@ def get_dataloaders(dataset, train_frac, valid_frac, test_frac, batch_size):
     return train_loader, valid_loader, test_loader
 
 
-def load_trackml_data(data, normalize=True, sort=False):
+def load_trackml_data(data, normalize=True, sort=False, spherical_system=False):
     '''
     Function for reading .csv file with TrackML data and creating tensors
     containing the hits and ground truth information from it.
@@ -70,12 +70,32 @@ def load_trackml_data(data, normalize=True, sort=False):
         order = np.argsort(distances)
         return order
 
+    def spherical_coord(event_hit_data):
+        r = np.sqrt(event_hit_data[:,0]**2 + event_hit_data[:,1]**2 + event_hit_data[:,2]**2)
+        phi = np.arctan2(event_hit_data[:,1], event_hit_data[:,0])
+        theta = np.arccos(event_hit_data[:,2]/r)
+        if normalize:
+            r_norm = r/4.727182 # r_max = 4.727182
+            phi_norm = (phi + np.pi)/(2*np.pi)
+            theta_norm = theta/np.pi
+            event_hit_data = np.column_stack([r_norm, theta_norm, phi_norm])
+        else:
+            event_hit_data = np.column_stack([r, theta, phi])
+
+        order = np.lexsort((event_hit_data[:,0], event_hit_data[:,2], event_hit_data[:,1]))
+        return event_hit_data, order
+
     def extract_hits_data(event_rows):
         # Returns the hit coordinates as a padded sequence; this is the input to the transformer
         sequence_length = len(event_rows)
         event_hit_data = event_rows[["x", "y", "z"]].to_numpy(dtype=np.float32)
 
-        if sort:
+        if spherical_system:
+            event_hit_data, order = spherical_coord(event_hit_data)
+            if sort:
+                event_hit_data = event_hit_data[order]
+
+        elif sort:
             order = sort_on_distance(event_hit_data)
             event_hit_data = event_hit_data[order]
 
@@ -88,7 +108,10 @@ def load_trackml_data(data, normalize=True, sort=False):
 
         if sort:
             event_hit_data = event_rows[["x", "y", "z"]].to_numpy(dtype=np.float32)
-            order = sort_on_distance(event_hit_data)
+            if spherical_system:
+                _, order = spherical_coord(event_hit_data)
+            else:
+                order = sort_on_distance(event_hit_data)
             event_track_params_data = event_track_params_data[order]
 
         return np.pad(event_track_params_data, [(0, max_num_hits-sequence_length), (0, 0)], "constant", constant_values=PAD_TOKEN)
@@ -100,7 +123,10 @@ def load_trackml_data(data, normalize=True, sort=False):
 
         if sort:
             event_hit_data = event_rows[["x", "y", "z"]].to_numpy(dtype=np.float32)
-            order = sort_on_distance(event_hit_data)
+            if spherical_system:
+                _, order = spherical_coord(event_hit_data)
+            else:
+                order = sort_on_distance(event_hit_data)
             event_hit_classes_data = event_hit_classes_data[order]
 
         return np.pad(event_hit_classes_data, [(0, max_num_hits-sequence_length), (0, 0)], "constant", constant_values=PAD_TOKEN)
