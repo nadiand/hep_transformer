@@ -39,7 +39,7 @@ def get_dataloaders(dataset, train_frac, valid_frac, test_frac, batch_size):
     return train_loader, valid_loader, test_loader
 
 
-def load_trackml_data(data, normalize=True, sort=False, spherical_system=False):
+def load_trackml_data(data, normalize=True, sort=False, spherical_system=False, cylindrical_system=False):
     '''
     Function for reading .csv file with TrackML data and creating tensors
     containing the hits and ground truth information from it.
@@ -78,12 +78,26 @@ def load_trackml_data(data, normalize=True, sort=False, spherical_system=False):
             r_norm = r/4.727182 # r_max = 4.727182
             phi_norm = (phi + np.pi)/(2*np.pi)
             theta_norm = theta/np.pi
-            event_hit_data = np.column_stack([r_norm, theta_norm, phi_norm])
+            new_event_hit_data = np.column_stack([r_norm, theta_norm, phi_norm])
         else:
-            event_hit_data = np.column_stack([r, theta, phi])
+            new_event_hit_data = np.column_stack([r, theta, phi])
 
-        order = np.lexsort((event_hit_data[:,0], event_hit_data[:,2], event_hit_data[:,1]))
-        return event_hit_data, order
+        order = np.lexsort((new_event_hit_data[:,0], new_event_hit_data[:,2], new_event_hit_data[:,1]))
+        return new_event_hit_data, order
+
+    def cylindrical_coord(event_hit_data):
+        rho = np.sqrt(event_hit_data[:,0]**2 + event_hit_data[:,1]**2)
+        phi = np.arctan2(event_hit_data[:,1], event_hit_data[:,0])
+        z = event_hit_data[:,2]
+        new_event_hit_data = np.column_stack([rho, phi, z])
+        if normalize:
+            rho_norm = rho/3.855715 # rho_max = 3.855715
+            phi_norm = (phi + np.pi) / (2 * np.pi)
+            z_norm = (z + 2.774814) / (2 * 2.774814) # Z_max = 2.774814
+            new_event_hit_data = np.column_stack([rho_norm, phi_norm, z_norm])
+
+        order = np.lexsort((new_event_hit_data[:,0], new_event_hit_data[:,2], new_event_hit_data[:,1]))
+        return new_event_hit_data, order
 
     def extract_hits_data(event_rows):
         # Returns the hit coordinates as a padded sequence; this is the input to the transformer
@@ -92,6 +106,11 @@ def load_trackml_data(data, normalize=True, sort=False, spherical_system=False):
 
         if spherical_system:
             event_hit_data, order = spherical_coord(event_hit_data)
+            if sort:
+                event_hit_data = event_hit_data[order]
+
+        elif cylindrical_system:
+            event_hit_data, order = cylindrical_coord(event_hit_data)
             if sort:
                 event_hit_data = event_hit_data[order]
 
@@ -110,6 +129,8 @@ def load_trackml_data(data, normalize=True, sort=False, spherical_system=False):
             event_hit_data = event_rows[["x", "y", "z"]].to_numpy(dtype=np.float32)
             if spherical_system:
                 _, order = spherical_coord(event_hit_data)
+            elif cylindrical_system:
+                _, order = cylindrical_coord(event_hit_data)
             else:
                 order = sort_on_distance(event_hit_data)
             event_track_params_data = event_track_params_data[order]
@@ -125,6 +146,8 @@ def load_trackml_data(data, normalize=True, sort=False, spherical_system=False):
             event_hit_data = event_rows[["x", "y", "z"]].to_numpy(dtype=np.float32)
             if spherical_system:
                 _, order = spherical_coord(event_hit_data)
+            elif cylindrical_system:
+                _, order = cylindrical_coord(event_hit_data)
             else:
                 order = sort_on_distance(event_hit_data)
             event_hit_classes_data = event_hit_classes_data[order]
