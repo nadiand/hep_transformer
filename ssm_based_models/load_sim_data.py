@@ -70,6 +70,10 @@ def load_trackml_data(data, normalize=True, sort=False, spherical_system=False, 
         order = np.argsort(distances)
         return order
 
+    def sort_side_to_side(event_coords):
+        order = np.lexsort((event_coords[:,2], event_coords[:,1], event_coords[:,0]))
+        return order
+
     def spherical_coord(event_hit_data):
         r = np.sqrt(event_hit_data[:,0]**2 + event_hit_data[:,1]**2 + event_hit_data[:,2]**2)
         phi = np.arctan2(event_hit_data[:,1], event_hit_data[:,0])
@@ -115,7 +119,8 @@ def load_trackml_data(data, normalize=True, sort=False, spherical_system=False, 
                 event_hit_data = event_hit_data[order]
 
         elif sort:
-            order = sort_on_distance(event_hit_data)
+            # order = sort_on_distance(event_hit_data)
+            order = sort_side_to_side(event_hit_data)
             event_hit_data = event_hit_data[order]
 
         return np.pad(event_hit_data, [(0, max_num_hits-sequence_length), (0, 0)], "constant", constant_values=PAD_TOKEN), sequence_length
@@ -132,7 +137,8 @@ def load_trackml_data(data, normalize=True, sort=False, spherical_system=False, 
             elif cylindrical_system:
                 _, order = cylindrical_coord(event_hit_data)
             else:
-                order = sort_on_distance(event_hit_data)
+                # order = sort_on_distance(event_hit_data)
+                order = sort_side_to_side(event_hit_data)
             event_track_params_data = event_track_params_data[order]
 
         return np.pad(event_track_params_data, [(0, max_num_hits-sequence_length), (0, 0)], "constant", constant_values=PAD_TOKEN)
@@ -149,7 +155,8 @@ def load_trackml_data(data, normalize=True, sort=False, spherical_system=False, 
             elif cylindrical_system:
                 _, order = cylindrical_coord(event_hit_data)
             else:
-                order = sort_on_distance(event_hit_data)
+                # order = sort_on_distance(event_hit_data)
+                order = sort_side_to_side(event_hit_data)
             event_hit_classes_data = event_hit_classes_data[order]
 
         return np.pad(event_hit_classes_data, [(0, max_num_hits-sequence_length), (0, 0)], "constant", constant_values=PAD_TOKEN)
