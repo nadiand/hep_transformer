@@ -158,6 +158,22 @@ def generate_flex_window_padding_mask(seqlens, window_size):
     return sliding_window_padded
 
 
+def generate_flex_circular_window_padding_mask(seqlens, window_size):
+    def sliding_window_padded(b, h, q_idx, kv_idx):
+        length = seqlens[b]
+        padding = (kv_idx < length) & (q_idx < length)
+
+        # Wrapping around the edges
+        circular_dist = torch.minimum(
+            torch.abs(q_idx - kv_idx),
+            length - torch.abs(q_idx - kv_idx)
+        )
+        circular_window = circular_dist <= window_size
+
+        return padding & circular_window
+    return sliding_window_padded
+
+
 class CustomTransformerEncoder(TransformerEncoder):
     r"""TransformerEncoder is a stack of N encoder layers.
 
