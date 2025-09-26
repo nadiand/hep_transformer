@@ -89,6 +89,17 @@ def load_trackml_data(data, normalize=True, sort=False, spherical_system=False, 
         order = np.lexsort((new_event_hit_data[:,0], new_event_hit_data[:,2], new_event_hit_data[:,1]))
         return new_event_hit_data, order
 
+    def circular_sort_phi(phi_values):
+        # Compute mean direction (not just mean, to handle wraparound properly)
+        mean_angle = np.arctan2(np.mean(np.sin(phi_values)), np.mean(np.cos(phi_values)))
+
+        # Rotate so that mean_angle is at 0
+        phi_shifted = (phi_values - mean_angle + np.pi) % (2*np.pi) - np.pi
+
+        # Get sorting order
+        order = np.argsort(phi_shifted)
+        return order
+
     def cylindrical_coord(event_hit_data):
         rho = np.sqrt(event_hit_data[:,0]**2 + event_hit_data[:,1]**2)
         phi = np.arctan2(event_hit_data[:,1], event_hit_data[:,0])
