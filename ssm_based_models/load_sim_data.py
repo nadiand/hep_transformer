@@ -86,7 +86,9 @@ def load_trackml_data(data, normalize=True, sort=False, spherical_system=False, 
         else:
             new_event_hit_data = np.column_stack([r, theta, phi])
 
-        order = np.lexsort((new_event_hit_data[:,0], new_event_hit_data[:,2], new_event_hit_data[:,1]))
+        # order = np.lexsort((new_event_hit_data[:,0], new_event_hit_data[:,2], new_event_hit_data[:,1]))
+        order = circular_sort_phi(new_event_hit_data[:,2])
+        new_event_hit_data = np.column_stack([r_norm, theta_norm, np.sin(phi_norm), np.cos(phi_norm)])
         return new_event_hit_data, order
 
     def circular_sort_phi(phi_values):
