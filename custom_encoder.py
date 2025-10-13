@@ -117,25 +117,29 @@ class CausalSelfAttention(Module):
         self.batch_first = batch_first
         self.dropout = dropout
         self.resid_dropout = Dropout(dropout)
+        self.flex_attn = compile_flex_attention()
 
     def forward(self, x, flex_mask):
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
-        query_projected = self.c_attn(x)
+        batch_size, seq_len, embed_dim = x.shape
+        assert embed_dim == self.c_attn.in_features, (
+            f"Expected input dim {self.c_attn.in_features}, got {embed_dim}"
+        )
 
-        batch_size = query_projected.size(0)
-        embed_dim = query_projected.size(2)
-        head_dim = embed_dim // (self.num_heads * 3)
+        qkv = self.c_attn(x)
+        query, key, value = qkv.chunk(3, dim=-1)
 
-        query, key, value = query_projected.chunk(3, -1)
-        query = query.view(batch_size, -1, self.num_heads, head_dim).transpose(1, 2)
-        key = key.view(batch_size, -1, self.num_heads, head_dim).transpose(1, 2)
-        value = value.view(batch_size, -1, self.num_heads, head_dim).transpose(1, 2)
+        head_dim = embed_dim // self.num_heads
+        assert head_dim * self.num_heads == embed_dim, (
+            f"embed_dim {embed_dim} not divisible by num_heads {self.num_heads}"
+        )
 
-        # Using flex attention (non causal currently!)
-        compiled_flex_attention = compile_flex_attention()
-        y = compiled_flex_attention(query, key, value, block_mask=flex_mask)
+        query = query.view(batch_size, seq_len, self.num_heads, head_dim).transpose(1, 2)
+        key   = key.view(batch_size, seq_len, self.num_heads, head_dim).transpose(1, 2)
+        value = value.view(batch_size, seq_len, self.num_heads, head_dim).transpose(1, 2)
 
-        y = y.transpose(1, 2).view(batch_size, -1, self.num_heads * head_dim)
+        y = self.flex_attn(query, key, value, block_mask=flex_mask)
+        y = y.transpose(1, 2).contiguous().view(batch_size, seq_len, embed_dim)
         y = self.resid_dropout(self.c_proj(y))
 
         return y
