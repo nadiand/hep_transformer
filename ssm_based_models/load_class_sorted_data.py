@@ -143,7 +143,19 @@ def load_trackml_data(data, normalize=True):
     return hits_data, hits_class_data, track_params_data, hit_classes_data
 
 
-def build_constant_class_mask(hit_class_matrix):
+def build_fixed_class_mask():
+    # TODO: currently hardcoded for 5 classes! fix later on
+    hit_class_matrix = torch.zeros((S, C))
+    # assign hits to classes
+    hit_class_matrix[:N+O, 0] = 1
+    hit_class_matrix[N:N*2+O, 1] = 1
+    hit_class_matrix[N*2:N*3+O, 2] = 1
+    hit_class_matrix[N*3:N*4+O, 3] = 1
+    hit_class_matrix[N*4:, 4] = 1
+    # and add the wraparound corners
+    hit_class_matrix[(N*5-O):, 0] = 1
+    hit_class_matrix[:O, 4] = 1
+
     # shared[i, j] = number of classes shared between hits i and j
     shared = hit_class_matrix @ hit_class_matrix.T
     mask = shared > 0
