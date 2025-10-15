@@ -91,7 +91,7 @@ def load_trackml_data(data, normalize=True):
         for c in range(C):
             hit = sorted_hits[ind]
             class_info = []
-            while hit[2] > 0.0 and hit[2] >= CLASSES[c][0] and hit[2] < CLASSES[c][1]:
+            while hit[2] >= CLASSES[c][0] and (hit[2] < CLASSES[c][1] or (hit[2] == 1.0 and c == 4)):
                 class_info.append(1)
                 new_coords.append(hit)
                 new_params.append(sorted_params[ind])
