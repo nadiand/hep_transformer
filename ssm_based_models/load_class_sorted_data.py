@@ -137,7 +137,7 @@ def load_trackml_data(data, normalize=True):
         class_infos.append(cls)
 
     hits_data = torch.tensor(np.stack(grouped_hits_data), dtype=torch.float32)
-    hits_class_data = torch.tensor(np.stack(class_infos), dtype=torch.int32)
+    hits_class_data = torch.tensor(np.stack(class_infos), dtype=torch.bool)
     track_params_data = torch.tensor(np.stack(grouped_params))
     hit_classes_data = torch.tensor(np.stack(grouped_weights))
     return hits_data, hits_class_data, track_params_data, hit_classes_data
@@ -167,6 +167,6 @@ def build_full_mask_fn(mask, padding_loc):
     """
     def mask_generation(b, h, q_idx, kv_idx):
         paddings = padding_loc[b] # 0/1 depending on whether at this location in the sequence we have a padding
-        pad = paddings[q_idx] and paddings[kv_idx]
-        return bool(mask[q_idx, kv_idx]) & pad
+        pad = paddings[q_idx] & paddings[kv_idx]
+        return mask[q_idx, kv_idx] & pad
     return mask_generation
