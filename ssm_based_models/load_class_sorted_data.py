@@ -59,7 +59,7 @@ def load_trackml_data(data, normalize=True):
 
     def extract_event_data(event_rows):
         event_hit_data = event_rows[["x", "y", "z"]].to_numpy(dtype=np.float32)
-        event_param_data = event_rows[["px","py","pz","q"]].to_numpy(dtype=np.float32)
+        event_param_data = event_rows[["cos_phi","sin_phi","cos_theta","q"]].to_numpy(dtype=np.float32)
         event_weight_data = event_rows[["particle_id","weight"]].to_numpy(dtype=np.float32)
 
         # Convert cartesian to spherical coords and normalize (optional)
@@ -108,7 +108,9 @@ def load_trackml_data(data, normalize=True):
             new_weights.extend([[PAD_TOKEN]*2]*remaining)
             if ind >= len(sorted_hits):
                 break
-
+        if sum(class_info) == 0:
+            print("very bad")
+            
         # Pad up even more, in case we stopped early (i.e. event only has hits in the first few classes)
         # Shouldn't be needed but as a sanity check
         total_needed = S - len(new_coords)
