@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 from hdbscan import HDBSCAN
 import argparse
+from time import process_time_ns, perf_counter_ns
 
 from model import TransformerRegressor, save_model
 from ssm_based_models.load_sim_data import HitsDataset, get_dataloaders, PAD_TOKEN, load_trackml_data
@@ -137,16 +138,39 @@ def predict(model, test_loader, min_cl_size, min_samples):
     predictions = {}
     score, perfects, doubles, lhcs = 0., 0., 0., 0.
 
+    # Time performance bookkeeping
+    cuda_times = []
+    cpu_times = []
+    cpu_prep_times = []
+    total_times = []
+    mask_times = []
+    start_event = torch.cuda.Event(enable_timing=True)
+    end_event = torch.cuda.Event(enable_timing=True)
+    start_mask = torch.cuda.Event(enable_timing=True)
+    end_mask = torch.cuda.Event(enable_timing=True)
+
     for i, data in enumerate(test_loader):
+        total_start = perf_counter_ns()
         event_id, hits, seqlens, track_params, track_labels = data
+        start_event.record()
 
         # Make masks
         padding_mask = (hits == PAD_TOKEN).all(dim=2)
+        start_mask.record()
         flex_padding_mask = generate_flex_padding_mask(seqlens)
+        end_mask.record()
+        torch.cuda.synchronize()
+        mask_elapsed = start_mask.elapsed_time(end_mask)
+        mask_times.append(mask_elapsed)
 
         with torch.amp.autocast('cuda'):
             pred = model(hits, padding_mask, f'test_{i}', flex_padding_mask)
+            end_event.record()
+            torch.cuda.synchronize()
+            cuda_elapsed = start_event.elapsed_time(end_event)  # in ms
+            cuda_times.append(cuda_elapsed)
 
+            prep_start = process_time_ns()
             # Unpad for score calculation and plotting
             batched_hits = []
             batched_pred = []
@@ -178,15 +202,32 @@ def predict(model, test_loader, min_cl_size, min_samples):
             targets = torch.unsqueeze(targets, 0)
             classes = torch.unsqueeze(classes, 0)
 
+        prep_end = process_time_ns()
+        cpu_prep_times.append(prep_end - prep_start)
+
         # Cluster and evaluate
+        start_cpu_time = process_time_ns()
         cluster_labels = clustering(final_pred, min_cl_size, min_samples)
+        end_cpu_time = process_time_ns()
+        cpu_times.append(end_cpu_time - start_cpu_time)
+
         event_score, scores = calc_score_trackml(cluster_labels[0], classes[0])
         score += event_score
         perfects += scores[0]
         doubles += scores[1]
         lhcs += scores[2]
 
-        predictions[event_id.item()] =  (hits, final_pred, targets, cluster_labels, classes, event_score)
+        predictions[event_id.item()] = (hits, final_pred, targets, cluster_labels, classes, event_score)
+
+        total_end = perf_counter_ns()
+        total_times.append(total_end - total_start)
+
+    print("Avg CUDA forward time (ms):", sum(cuda_times[1:]) / len(cuda_times[1:]))
+    print("Avg CUDA masking time (ms):", sum(mask_times[1:]) / len(mask_times[1:]))
+    print("Avg CPU prep time (ns):", sum(cpu_prep_times[1:]) / len(cpu_prep_times[1:]))
+    print("Avg CPU clustering time (ns):", sum(cpu_times[1:]) / len(cpu_times[1:]))
+    print("Avg total latency (ns):", sum(total_times[1:]) / len(total_times[1:]))
+    print()
 
     return predictions, score/len(test_loader), perfects/len(test_loader), doubles/len(test_loader), lhcs/len(test_loader)
 
