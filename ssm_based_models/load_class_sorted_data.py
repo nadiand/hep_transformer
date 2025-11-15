@@ -86,46 +86,65 @@ def load_trackml_data(data, normalize=True):
         # Go over every defined class and create a new list containing the hits from that class followed by
         # padding (until the max nr hits per class have been reached). Also make a list containing 0s and 1s
         # that will be used to generate the attention mask to not attend to padding
-        all_class_info, new_coords, new_params, new_weights = [], [], [], []
+        all_class_info, all_new_coords, all_new_params, all_new_weights = [], [], [], []
         ind = 0
         for c in range(C):
             hit = sorted_hits[ind]
-            class_info = []
-            while hit[2] >= CLASSES[c][0] and (hit[2] < CLASSES[c][1] or (hit[2] == 1.0 and c == 4)):
+            insert_pad = -1
+            class_info, new_coords, new_params, new_weights = [], [], [], []
+            class_ind = 0
+            while hit[2] >= CLASSES[c][0] and (hit[2] < CLASSES[c][1] or (hit[2] == 1.0 and c == (C-1))):
+                if hit[2] >= (CLASSES[c][1] - OVERLAP):
+                    insert_pad = class_ind
                 class_info.append(1)
                 new_coords.append(hit)
                 new_params.append(sorted_params[ind])
                 new_weights.append(sorted_weights[ind])
                 ind += 1
+                class_ind += 1
                 if ind >= len(sorted_hits):
                     break
                 hit = sorted_hits[ind]
+
             remaining = N - len(class_info)
-            class_info.extend([0]*remaining)
+            if insert_pad == 0:
+                class_info = [0]*remaining + class_info
+                new_coords = [[PAD_TOKEN]*3]*remaining + new_coords
+                new_params = [[PAD_TOKEN]*4]*remaining + new_params
+                new_weights = [[PAD_TOKEN]*2]*remaining + new_weights
+            elif insert_pad == -1:
+                class_info.extend([0]*remaining)
+                new_coords.extend([[PAD_TOKEN]*3]*remaining)
+                new_params.extend([[PAD_TOKEN]*4]*remaining)
+                new_weights.extend([[PAD_TOKEN]*2]*remaining)
+            else:
+                class_info = class_info[:insert_pad] + [0]*remaining + class_info[insert_pad:]
+                new_coords = new_coords[:insert_pad] + [[PAD_TOKEN]*3]*remaining + new_coords[insert_pad:]
+                new_params = new_params[:insert_pad] + [[PAD_TOKEN]*4]*remaining + new_params[insert_pad:]
+                new_weights = new_weights[:insert_pad] + [[PAD_TOKEN]*2]*remaining + new_weights[insert_pad:]
+
             all_class_info.extend(class_info)
-            new_coords.extend([[PAD_TOKEN]*3]*remaining)
-            new_params.extend([[PAD_TOKEN]*4]*remaining)
-            new_weights.extend([[PAD_TOKEN]*2]*remaining)
+            all_new_coords.extend(new_coords)
+            all_new_params.extend(new_params)
+            all_new_weights.extend(new_weights)
             if ind >= len(sorted_hits):
                 break
-        if sum(class_info) == 0:
-            print("very bad")
-            
+
         # Pad up even more, in case we stopped early (i.e. event only has hits in the first few classes)
-        # Shouldn't be needed but as a sanity check
-        total_needed = S - len(new_coords)
+        total_needed = S - len(all_new_coords)
         if total_needed > 0:
-            new_coords.extend([[PAD_TOKEN]*3]*total_needed)
-            new_params.extend([[PAD_TOKEN]*4]*total_needed)
-            new_weights.extend([[PAD_TOKEN]*2]*total_needed)
+            all_new_coords.extend([[PAD_TOKEN]*3]*total_needed)
+            all_new_params.extend([[PAD_TOKEN]*4]*total_needed)
+            all_new_weights.extend([[PAD_TOKEN]*2]*total_needed)
             all_class_info.extend([0]*total_needed)
 
-        # print('NEW', new_weights)
+        # print('NEW', new_coords)
         # print('INFO', all_class_info)
         # Make sure the length of the event is the max seq len S
-        assert len(new_coords) == S
-        return np.array(new_coords, dtype=np.float32), np.array(all_class_info, dtype=np.int32), np.array(new_params, dtype=np.float32), np.array(new_weights, dtype=np.float32)
-
+        assert len(all_new_coords) == S
+#        print(all_class_info)
+        return np.array(all_new_coords, dtype=np.float32), np.array(all_class_info, dtype=np.int32), np.array(all_new_params, dtype=np.float32), np.array(all_new_weights, dtype=np.float32)
+    
     grouped_hits_data = []
     class_infos = []
     grouped_params = []
