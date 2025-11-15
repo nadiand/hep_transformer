@@ -7,7 +7,7 @@ import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-PAD_TOKEN = -1
+PAD_TOKEN = 0
 
 class HitsDataset(Dataset):
     '''
@@ -32,7 +32,7 @@ class HitsDataset(Dataset):
 def get_dataloaders(dataset, train_frac, valid_frac, test_frac, batch_size):
     train_set, valid_set, test_set = random_split(dataset, [train_frac, valid_frac, test_frac], generator=torch.Generator().manual_seed(37))
 
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
     valid_loader = DataLoader(valid_set, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_set, batch_size=1, shuffle=False)
 
@@ -48,6 +48,12 @@ def load_trackml_data(data, normalize=True, sort=False, spherical_system=False, 
     chunking allows for reading .csv files in chunks.
     '''
     data = pd.read_csv(data)
+
+    print("nr rows", len(data), flush=True)
+    print("nr events", data["event_id"].nunique(), flush=True)
+    print(data.dtypes)
+    print(data.isnull().sum())
+    print("Any infs:", np.isinf(data.select_dtypes(include=[float, int])).any().any())
 
     if normalize:
         for col in ["x", "y", "z"]:
