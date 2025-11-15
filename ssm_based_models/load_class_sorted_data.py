@@ -20,18 +20,18 @@ class HitsDataset(Dataset):
     parameters, the particles they belong to.
     '''
 
-    def __init__(self, hits_data, track_params_data=None, class_data=None, hits_seq_len=None):
+    def __init__(self, hits_data, track_params_data=None, class_data=None, hits_class_info=None):
         self.hits_data = hits_data.to(DEVICE)
         self.track_params_data = track_params_data.to(DEVICE)
         self.class_data = class_data.to(DEVICE)
-        self.hits_seq_len = hits_seq_len.to(DEVICE)
+        self.hits_class_info = hits_class_info.to(DEVICE)
         self.total_events = self.__len__()
 
     def __len__(self):
         return self.hits_data.shape[0]
 
     def __getitem__(self, idx):
-        return idx, self.hits_data[idx], self.hits_seq_len[idx], self.track_params_data[idx], self.class_data[idx]
+        return idx, self.hits_data[idx], self.hits_class_info[idx], self.track_params_data[idx], self.class_data[idx]
 
 
 def get_dataloaders(dataset, train_frac, valid_frac, test_frac, batch_size):
@@ -45,7 +45,7 @@ def get_dataloaders(dataset, train_frac, valid_frac, test_frac, batch_size):
 
 
 def load_trackml_data(data, normalize=True):
-    data = pd.read_csv(data)[480:]
+    data = pd.read_csv(data)
 
     if normalize:
         for col in ["x", "y", "z"]:
