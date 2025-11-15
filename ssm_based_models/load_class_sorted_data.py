@@ -9,6 +9,7 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 PAD_TOKEN = 0
 CLASSES = [(0.0, 0.2), (0.2, 0.4), (0.4, 0.6), (0.6, 0.8), (0.8, 1)]
+OVERLAP = 0.05
 C = len(CLASSES)
 N = 1320
 S = N*C
@@ -165,21 +166,33 @@ def load_trackml_data(data, normalize=True):
 
 
 def build_fixed_class_mask():
-    # TODO: currently hardcoded for 5 classes! fix later on
     hit_class_matrix = torch.zeros((S, C))
-    # assign hits to classes
-    hit_class_matrix[:N+O, 0] = 1
-    hit_class_matrix[N:N*2+O, 1] = 1
-    hit_class_matrix[N*2:N*3+O, 2] = 1
-    hit_class_matrix[N*3:N*4+O, 3] = 1
-    hit_class_matrix[N*4:, 4] = 1
-    # and add the wraparound corners
-    hit_class_matrix[(N*5-O):, 0] = 1
-    hit_class_matrix[:O, 4] = 1
+    # assign to class
+    hit_class_matrix[:N, 0] = 1
+    for i in range(1, C-1):
+        hit_class_matrix[N*i:N*(i+1), i] = 1
+    hit_class_matrix[N*(C-1):, (C-1)] = 1
 
     # shared[i, j] = number of classes shared between hits i and j
     shared = hit_class_matrix @ hit_class_matrix.T
     mask = shared > 0
+
+    # add overlap between classes
+    for i in range(C - 1):
+        class_i_end = N*(i+1)
+        class_j_start = N*(i+1)
+
+        i_overlap = slice(class_i_end-O, class_i_end)
+        j_overlap = slice(class_j_start, class_j_start+O)
+
+        mask[i_overlap, j_overlap] = True
+        mask[j_overlap, i_overlap] = True
+
+    # circular wraparound overlap (phi periodic continuity)
+    i_overlap = slice(N*(C-1) + (N-O), N*C)
+    j_overlap = slice(0, O)
+    mask[i_overlap, j_overlap] = True
+    mask[j_overlap, i_overlap] = True
     return mask
 
 def build_full_mask_fn(mask, padding_loc):
